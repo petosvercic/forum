@@ -1,3 +1,6 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import { redirect } from "next/navigation";
 
 import { ProfileForm } from "@/components/profile-form";
@@ -24,9 +27,9 @@ export default async function MePage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-bold">Môj profil</h1>
+        <h1 className="text-2xl font-bold">MĂ´j profil</h1>
         <p className="text-sm text-foreground/70">
-          Nastav si handle, skills a región. Toto bude neskôr základ na prepojenie
+          Nastav si handle, skills a regiĂłn. Toto bude neskĂ´r zĂˇklad na prepojenie
           dopytu a ponuky.
         </p>
       </div>
@@ -34,3 +37,4 @@ export default async function MePage() {
     </div>
   );
 }
+
