@@ -61,7 +61,7 @@ export function NewPostForm({ userId }: { userId: string }) {
       if (error) throw error;
       if (!data?.id) throw new Error("Neočakávaná odpoveď z databázy");
 
-      router.push(`/p/${data.id}`);
+      router.push(`/forum/p/`);
       router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Nastala chyba");

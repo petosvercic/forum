@@ -28,7 +28,7 @@ export default async function PostPage({
           Príspevok sa nepodarilo načítať: {postError.message}
         </p>
         <div className="mt-3">
-          <Link href="/" className="text-sm underline">
+          <Link href="/forum" className="text-sm underline">
             Späť na feed
           </Link>
         </div>
@@ -52,7 +52,7 @@ export default async function PostPage({
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between gap-3">
-        <Link href="/" className="text-sm text-foreground/70 hover:underline">
+        <Link href="/forum" className="text-sm text-foreground/70 hover:underline">
           ← späť
         </Link>
         <div className="text-xs text-foreground/60">
@@ -80,7 +80,7 @@ export default async function PostPage({
               {typedPost.tags.map((t) => (
                 <Link
                   key={t}
-                  href={`/?tag=${encodeURIComponent(t)}`}
+                  href={`/forum?tag=${encodeURIComponent(t)}`}
                   className="text-xs px-2 py-0.5 rounded-full border border-foreground/10 hover:border-foreground/30"
                 >
                   #{t}
@@ -120,7 +120,7 @@ export default async function PostPage({
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Komentáre ({comments.length})</h2>
-          <Link href="/new" className="text-sm underline">
+          <Link href="/forum/new" className="text-sm underline">
             + nový príspevok
           </Link>
         </div>
@@ -131,7 +131,7 @@ export default async function PostPage({
           <div className="p-4 rounded-lg border border-foreground/10 text-sm">
             Pre pridanie komentára sa prihlás.
             <Link
-              href={`/auth/login?next=${encodeURIComponent(`/p/${id}`)}`}
+              href={`/auth/login?next=${encodeURIComponent(`/forum/p/${id}`)}`}
               className="ml-2 underline"
             >
               Prihlásiť sa

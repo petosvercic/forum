@@ -14,17 +14,17 @@ export default function ForumLayout({
       <header className="border-b border-b-foreground/10">
         <div className="mx-auto max-w-5xl flex items-center justify-between p-4">
           <div className="flex items-center gap-4">
-            <Link href="/" className="font-semibold tracking-tight">
+            <Link href="/forum" className="font-semibold tracking-tight">
               Forum AI
             </Link>
             <nav className="hidden sm:flex items-center gap-3 text-sm text-foreground/80">
-              <Link href="/" className="hover:text-foreground">
+              <Link href="/forum" className="hover:text-foreground">
                 Feed
               </Link>
-              <Link href="/new" className="hover:text-foreground">
+              <Link href="/forum/new" className="hover:text-foreground">
                 Nový príspevok
               </Link>
-              <Link href="/me" className="hover:text-foreground">
+              <Link href="/forum/me" className="hover:text-foreground">
                 Profil
               </Link>
             </nav>

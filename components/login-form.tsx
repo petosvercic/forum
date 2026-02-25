@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export function LoginForm({
@@ -25,8 +25,6 @@ export function LoginForm({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/";
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,9 +38,10 @@ export function LoginForm({
         password,
       });
       if (error) throw error;
-      router.push(next);
+      // Update this route to redirect to an authenticated route. The user already has an active session.
+      router.push("/protected");
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "Nastala chyba");
+      setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -52,8 +51,10 @@ export function LoginForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Prihlásenie</CardTitle>
-          <CardDescription>Zadaj email a heslo.</CardDescription>
+          <CardTitle className="text-2xl">Login</CardTitle>
+          <CardDescription>
+            Enter your email below to login to your account
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin}>
@@ -71,12 +72,12 @@ export function LoginForm({
               </div>
               <div className="grid gap-2">
                 <div className="flex items-center">
-                  <Label htmlFor="password">Heslo</Label>
+                  <Label htmlFor="password">Password</Label>
                   <Link
                     href="/auth/forgot-password"
                     className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
                   >
-                    Zabudnuté heslo?
+                    Forgot your password?
                   </Link>
                 </div>
                 <Input
@@ -89,16 +90,16 @@ export function LoginForm({
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Prihlasujem…" : "Prihlásiť"}
+                {isLoading ? "Logging in..." : "Login"}
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">
-              Nemáš účet?{" "}
+              Don&apos;t have an account?{" "}
               <Link
-                href={`/auth/sign-up?next=${encodeURIComponent(next)}`}
+                href="/auth/sign-up"
                 className="underline underline-offset-4"
               >
-                Registrácia
+                Sign up
               </Link>
             </div>
           </form>

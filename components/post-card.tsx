@@ -26,7 +26,7 @@ export function PostCard({ post }: { post: PostRow }) {
           </div>
         </div>
         <Link
-          href={`/p/${post.id}`}
+          href={`/forum/p/`}
           className="text-lg font-semibold leading-snug hover:underline"
         >
           {post.title}
@@ -35,7 +35,7 @@ export function PostCard({ post }: { post: PostRow }) {
           {post.tags?.slice(0, 8).map((t) => (
             <Link
               key={t}
-              href={`/?tag=${encodeURIComponent(t)}`}
+              href={`/forum?tag=${encodeURIComponent(t)}`}
               className="text-xs px-2 py-0.5 rounded-full border border-foreground/10 hover:border-foreground/30"
             >
               #{t}

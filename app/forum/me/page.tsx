@@ -10,7 +10,7 @@ export default async function MePage() {
   const user = data?.claims;
 
   if (!user?.sub || !user.email) {
-    redirect(`/auth/login?next=${encodeURIComponent("/me")}`);
+    redirect(`/auth/login?next=${encodeURIComponent("/forum/me")}`);
   }
 
   const { data: profileData } = await supabase

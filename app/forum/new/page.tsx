@@ -9,7 +9,7 @@ export default async function NewPostPage() {
   const user = data?.claims;
 
   if (!user?.sub) {
-    redirect(`/auth/login?next=${encodeURIComponent("/new")}`);
+    redirect(`/auth/login?next=${encodeURIComponent("/forum/new")}`);
   }
 
   return (

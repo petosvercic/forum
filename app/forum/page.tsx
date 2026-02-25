@@ -54,12 +54,12 @@ export default async function ForumHome({
           </p>
         </div>
         <Button asChild>
-          <Link href="/new">+ Nový príspevok</Link>
+          <Link href="/forum/new">+ Nový príspevok</Link>
         </Button>
       </div>
 
       <form
-        action="/"
+        action="/forum"
         method="get"
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 p-3 rounded-lg border border-foreground/10"
       >
@@ -136,7 +136,7 @@ export default async function ForumHome({
             Použiť filtre
           </Button>
           <Button type="button" size="sm" variant="outline" asChild>
-            <Link href="/">Reset</Link>
+            <Link href="/forum">Reset</Link>
           </Button>
         </div>
       </form>
