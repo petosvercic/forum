@@ -26,7 +26,7 @@ export function PostCard({ post }: { post: PostRow }) {
           </div>
         </div>
         <Link
-          href={`/forum/p/`}
+          href={`/forum/p/${post.id}`}
           className="text-lg font-semibold leading-snug hover:underline"
         >
           {post.title}

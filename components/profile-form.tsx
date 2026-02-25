@@ -84,6 +84,9 @@ export function ProfileForm({
               <div className="text-xs text-foreground/60">
                 Krátke meno do URL a pre komunitu.
               </div>
+              <div className="text-xs text-foreground/60">
+                Verejný profil: <span className="font-mono">/forum/u/{"<handle>"}</span>
+              </div>
             </div>
 
             <div className="flex flex-col gap-1">

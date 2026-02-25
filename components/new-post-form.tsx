@@ -18,13 +18,19 @@ export function NewPostForm({ userId }: { userId: string }) {
   const [category, setCategory] = useState<string>(CATEGORIES[0]);
   const [title, setTitle] = useState("");
   const [tagsText, setTagsText] = useState("");
+  const [isProject, setIsProject] = useState(false);
   const [context, setContext] = useState("");
   const [prompt, setPrompt] = useState("");
   const [output, setOutput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const tags = useMemo(() => normalizeTags(tagsText), [tagsText]);
+  const tags = useMemo(() => {
+    const base = normalizeTags(tagsText);
+    if (isProject && !base.includes("project")) return ["project", ...base].slice(0, 12);
+    if (!isProject) return base.filter((t) => t !== "project");
+    return base;
+  }, [tagsText, isProject]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,6 +142,10 @@ export function NewPostForm({ userId }: { userId: string }) {
 
           <div className="flex flex-col gap-1">
             <Label htmlFor="tags">Tagy</Label>
+            <label className="mt-1 flex items-center gap-2 text-xs text-foreground/70">
+              <input type="checkbox" checked={isProject} onChange={(e) => setIsProject(e.target.checked)} />
+              Toto je projekt (zobrazí sa v portfóliu)
+            </label>
             <Input
               id="tags"
               value={tagsText}

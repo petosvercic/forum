@@ -66,3 +66,28 @@
     @apply bg-background text-foreground;
   }
 }
+
+
+/* --- Viora brand background (fallback gradients + optional image in /public/viora-bg.webp) --- */
+.viora-bg {
+  background-image:
+    radial-gradient(60% 50% at 20% 20%, rgba(150, 180, 255, 0.35) 0%, rgba(255, 255, 255, 0) 60%),
+    radial-gradient(55% 45% at 80% 30%, rgba(210, 170, 255, 0.25) 0%, rgba(255, 255, 255, 0) 65%),
+    radial-gradient(60% 60% at 50% 90%, rgba(120, 210, 255, 0.18) 0%, rgba(255, 255, 255, 0) 70%),
+    url("/viora-bg.webp");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+.viora-panel {
+  backdrop-filter: blur(14px);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 16px;
+}
+
+.dark .viora-panel {
+  background: rgba(10, 10, 10, 0.55);
+  border-color: rgba(255,255,255,0.12);
+}
