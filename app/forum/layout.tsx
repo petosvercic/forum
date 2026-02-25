@@ -1,6 +1,6 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { Suspense } from "react";
-
+import { CurrentYear } from "@/components/current-year";
 import { AuthButton } from "@/components/auth-button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 
@@ -22,7 +22,7 @@ export default function ForumLayout({
                 Feed
               </Link>
               <Link href="/forum/new" className="hover:text-foreground">
-                Nový príspevok
+                NovĂ˝ prĂ­spevok
               </Link>
               <Link href="/forum/me" className="hover:text-foreground">
                 Profil
@@ -32,7 +32,7 @@ export default function ForumLayout({
 
           <div className="flex items-center gap-3">
             <ThemeSwitcher />
-            <Suspense fallback={<div className="text-sm text-foreground/60">…</div>}>
+            <Suspense fallback={<div className="text-sm text-foreground/60">â€¦</div>}>
               <AuthButton />
             </Suspense>
           </div>
@@ -43,8 +43,8 @@ export default function ForumLayout({
 
       <footer className="border-t border-t-foreground/10">
         <div className="mx-auto max-w-5xl p-4 text-xs text-foreground/60 flex items-center justify-between gap-4">
-          <span>SK/CZ komunita: zdieľaj AI výstupy, overuj, diskutuj, nájdi pomoc.</span>
-          <span>© {new Date().getFullYear()}</span>
+          <span>SK/CZ komunita: zdieÄľaj AI vĂ˝stupy, overuj, diskutuj, nĂˇjdi pomoc.</span>
+          <span>© <CurrentYear /></span>
         </div>
       </footer>
     </div>
