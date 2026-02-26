@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -19,11 +19,16 @@ export function PostCard({ post }: { post: PostRow }) {
   return (
     <Card className="relative hover:bg-foreground/[0.02] transition cursor-pointer overflow-hidden">
       {/* Click anywhere to open */}
-      <Link href={`/forum/p/${post.id}`} className="absolute inset-0 z-0" aria-label={post.title}>
+      <Link
+        href={`/forum/p/${post.id}`}
+        className="absolute inset-0 z-10"
+        aria-label={post.title}
+      >
         <span className="sr-only">Open</span>
       </Link>
 
-      <CardHeader className="relative z-10 space-y-1.5 py-3">
+      {/* Everything below is non-interactive so click passes to overlay */}
+      <CardHeader className="relative z-20 pointer-events-none space-y-1.5 py-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={post.type === "request" ? "default" : "secondary"}>
@@ -43,12 +48,14 @@ export function PostCard({ post }: { post: PostRow }) {
             <div className="text-base font-semibold leading-snug truncate">
               {post.title}
             </div>
-            <div className="mt-1 flex flex-wrap gap-1.5">
+
+            {/* Tags must stay clickable */}
+            <div className="mt-1 flex flex-wrap gap-1.5 pointer-events-auto">
               {post.tags?.slice(0, 8).map((t) => (
                 <Link
                   key={t}
                   href={`/forum?tag=${encodeURIComponent(t)}`}
-                  className="relative z-20 text-xs px-2 py-0.5 rounded-full border border-foreground/10 hover:border-foreground/30"
+                  className="text-xs px-2 py-0.5 rounded-full border border-foreground/10 hover:border-foreground/30"
                 >
                   #{t}
                 </Link>
@@ -56,8 +63,8 @@ export function PostCard({ post }: { post: PostRow }) {
             </div>
           </div>
 
-          {/* Quick actions */}
-          <div className="relative z-20 flex items-center gap-2 shrink-0">
+          {/* Quick actions must stay clickable */}
+          <div className="flex items-center gap-2 shrink-0 pointer-events-auto">
             {typeof helpfulCount === "number" ? (
               <HelpfulButton
                 targetType="post"
@@ -75,7 +82,7 @@ export function PostCard({ post }: { post: PostRow }) {
         </div>
       </CardHeader>
 
-      <CardContent className="relative z-10 pt-0 pb-3">
+      <CardContent className="relative z-20 pointer-events-none pt-0 pb-3">
         <div className="flex gap-3">
           <div className="flex-1">
             {post.context ? (
