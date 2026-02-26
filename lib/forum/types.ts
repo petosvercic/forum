@@ -85,6 +85,7 @@ export type ProfileRow = {
   id: string;
   email?: string | null; // requires DB migration
   role?: UserRole | null; // requires DB migration
+  is_public?: boolean | null; // requires DB migration 3
   handle: string | null;
   display_name: string | null;
   bio: string | null;
@@ -93,4 +94,13 @@ export type ProfileRow = {
   links: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+};
+
+export type ForumCategoryRow = {
+  id: string;
+  name: string;
+  slug: string;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
 };

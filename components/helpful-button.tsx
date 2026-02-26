@@ -35,14 +35,15 @@ export function HelpfulButton({
       const supabase = createClient();
       const { data: auth } = await supabase.auth.getUser();
       if (!auth?.user) {
-        // user is not logged in; ignore
         return;
       }
 
       if (active) {
+        // IMPORTANT: delete ONLY the current user's reaction
         const { error } = await supabase
           .from("reactions")
           .delete()
+          .eq("user_id", auth.user.id)
           .eq("target_type", targetType)
           .eq("target_id", targetId)
           .eq("kind", "helpful");
@@ -50,12 +51,18 @@ export function HelpfulButton({
         setActive(false);
         setCount((c) => Math.max(0, c - 1));
       } else {
-        const { error } = await supabase.from("reactions").insert({
-          user_id: auth.user.id,
-          target_type: targetType,
-          target_id: targetId,
-          kind: "helpful",
-        });
+        // Use upsert so repeated clicks won't explode on unique constraints.
+        const { error } = await supabase
+          .from("reactions")
+          .upsert(
+            {
+              user_id: auth.user.id,
+              target_type: targetType,
+              target_id: targetId,
+              kind: "helpful",
+            },
+            { onConflict: "user_id,target_type,target_id,kind" }
+          );
         if (error) throw error;
         setActive(true);
         setCount((c) => c + 1);
@@ -71,7 +78,11 @@ export function HelpfulButton({
       size={size}
       variant={active ? "default" : "outline"}
       disabled={busy}
-      onClick={toggle}
+      onClick={(e) => {
+        // Avoid triggering parent "card click" navigation.
+        e.stopPropagation();
+        toggle();
+      }}
       className="gap-2"
       title={label}
     >

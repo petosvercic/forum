@@ -11,6 +11,16 @@ import { Label } from "@/components/ui/label";
 import type { ProfileRow } from "@/lib/forum/types";
 import { normalizeTags } from "@/lib/forum/constants";
 
+function normalizeHandle(input: string) {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9_-]/g, "")
+    .replace(/-+/g, "-")
+    .slice(0, 24);
+}
+
 export function ProfileForm({
   userId,
   initial,
@@ -29,6 +39,11 @@ export function ProfileForm({
   const [region, setRegion] = useState(initial?.region ?? "");
   const [skillsText, setSkillsText] = useState((initial?.skills ?? []).join(", "));
   const [contactEmail, setContactEmail] = useState(initialContactEmail ?? "");
+  const [isPublic, setIsPublic] = useState(
+    initial?.is_public === null || typeof initial?.is_public === "undefined"
+      ? true
+      : !!initial.is_public
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -43,16 +58,24 @@ export function ProfileForm({
 
     try {
       const supabase = createClient();
+      const cleanHandle = normalizeHandle(handle);
       const payload = {
         id: userId,
-        handle: handle.trim() ? handle.trim() : null,
+        handle: cleanHandle ? cleanHandle : null,
         display_name: displayName.trim() ? displayName.trim() : null,
         bio: bio.trim() ? bio.trim() : null,
         region: region.trim() ? region.trim() : null,
         skills,
+        is_public: isPublic,
       };
 
-      const { error } = await supabase.from("profiles").upsert(payload);
+      let { error } = await supabase.from("profiles").upsert(payload);
+      // Backward-compat if DB isn't migrated yet
+      if (error?.message?.includes("is_public")) {
+        const { is_public, ...rest } = payload as any;
+        const retry = await supabase.from("profiles").upsert(rest);
+        error = retry.error;
+      }
       if (error) throw error;
 
       // Contact email is stored separately (not visible to anonymous users).
@@ -135,6 +158,22 @@ export function ProfileForm({
             />
             <div className="text-xs text-foreground/60">
               Zobrazí sa len prihláseným používateľom na tvojom verejnom profile.
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2 rounded-lg border border-foreground/10 p-3">
+            <input
+              id="isPublic"
+              type="checkbox"
+              checked={isPublic}
+              onChange={(e) => setIsPublic(e.target.checked)}
+              className="mt-1"
+            />
+            <div className="flex-1">
+              <Label htmlFor="isPublic">Zobraziť ma v zozname Ľudia</Label>
+              <div className="text-xs text-foreground/60">
+                Keď to vypneš, nebudeš v sekcii Ľudia, ale tvoj profil bude stále dostupný cez priamy link.
+              </div>
             </div>
           </div>
 

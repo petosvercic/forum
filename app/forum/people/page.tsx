@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { PeopleCard } from "@/components/people-card";
 import type { ProfileRow, ProfileReputationRow } from "@/lib/forum/types";
 
 type SearchParams = {
@@ -23,11 +23,30 @@ export default async function PeoplePage({
 
   const supabase = await createClient();
 
+  // Viewer role (admins can see all profiles and edit roles)
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const viewer = claimsData?.claims;
+  let viewerRole: string | null = null;
+  if (viewer?.sub) {
+    const { data: vp } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", viewer.sub)
+      .maybeSingle();
+    viewerRole = (vp as any)?.role ?? null;
+  }
+  const isAdmin = viewerRole === "admin";
+
   let query = supabase
     .from("profiles")
     .select("*")
     .order("created_at", { ascending: false })
     .limit(50);
+
+  if (!isAdmin) {
+    // Only list opt-in profiles for public People listing.
+    query = query.eq("is_public", true).not("handle", "is", null);
+  }
 
   if (q) {
     // lightweight search
@@ -38,7 +57,24 @@ export default async function PeoplePage({
   if (skill) query = query.contains("skills", [skill]);
   if (region) query = query.ilike("region", `%${region}%`);
 
-  const { data, error } = await query;
+  let { data, error } = await query;
+  // Backward-compat: if the DB hasn't been migrated yet (missing is_public), fall back.
+  if (error?.message?.includes("is_public")) {
+    const fallback = supabase
+      .from("profiles")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (q) {
+      fallback.or(`handle.ilike.%${q}%,display_name.ilike.%${q}%,bio.ilike.%${q}%`);
+    }
+    if (skill) fallback.contains("skills", [skill]);
+    if (region) fallback.ilike("region", `%${region}%`);
+    const fb = await fallback;
+    data = fb.data;
+    error = fb.error;
+  }
+
   const profiles = (data ?? []) as ProfileRow[];
 
   // Reputation metrics
@@ -131,60 +167,14 @@ export default async function PeoplePage({
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3">
-          {profiles.map((p) => {
-            const rep = repMap.get(p.id);
-            return (
-              <Card key={p.id} className="hover:bg-foreground/[0.02] transition">
-                <CardHeader className="py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="font-semibold">
-                        {p.display_name || p.handle || "Profil"}
-                      </div>
-                      <div className="text-xs text-foreground/60">
-                        @{p.handle || "—"} • {p.region || "bez regiónu"}
-                      </div>
-                    </div>
-
-                    {p.handle ? (
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/forum/u/${encodeURIComponent(p.handle)}`}>
-                          Portfólio
-                        </Link>
-                      </Button>
-                    ) : null}
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0 pb-3">
-                  {p.bio ? (
-                    <p className="text-sm text-foreground/80 max-h-12 overflow-hidden">
-                      {p.bio}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-foreground/60">Bez bio.</p>
-                  )}
-
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-foreground/70">
-                    <span className="tabular-nums">🧩 posts: {rep?.posts_count ?? 0}</span>
-                    <span className="tabular-nums">💬 comments: {rep?.comments_count ?? 0}</span>
-                    <span className="tabular-nums">👍 helpful: {rep?.helpful_received ?? 0}</span>
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {(p.skills || []).slice(0, 10).map((s) => (
-                      <Link
-                        key={s}
-                        href={`/forum/people?skill=${encodeURIComponent(s)}`}
-                        className="text-xs px-2 py-0.5 rounded-full border border-foreground/10 hover:border-foreground/30"
-                      >
-                        #{s}
-                      </Link>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+          {profiles.map((p) => (
+            <PeopleCard
+              key={p.id}
+              profile={p}
+              reputation={repMap.get(p.id)}
+              isAdmin={isAdmin}
+            />
+          ))}
         </div>
       )}
 

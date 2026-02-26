@@ -103,6 +103,7 @@ export default async function PostPage({
     const { data: minePost } = await supabase
       .from("reactions")
       .select("target_id")
+      .eq("user_id", user.sub)
       .eq("target_type", "post")
       .eq("kind", "helpful")
       .eq("target_id", id)
@@ -113,6 +114,7 @@ export default async function PostPage({
       const { data: mineComments } = await supabase
         .from("reactions")
         .select("target_id")
+        .eq("user_id", user.sub)
         .eq("target_type", "comment")
         .eq("kind", "helpful")
         .in("target_id", commentIds);

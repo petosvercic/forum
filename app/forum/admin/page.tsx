@@ -4,7 +4,10 @@ export const revalidate = 0;
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
+
 import { AdminUsers } from "@/components/admin-users";
+import { Button } from "@/components/ui/button";
 import type { ProfileRow } from "@/lib/forum/types";
 
 export default async function AdminPage() {
@@ -29,11 +32,26 @@ export default async function AdminPage() {
 
   const { data: profilesData } = await supabase
     .from("profiles")
-    .select("id,email,role,handle,display_name,skills,region,created_at,updated_at")
+    .select("id,email,role,handle,display_name,skills,region,created_at")
     .order("created_at", { ascending: false })
     .limit(200);
 
   const profiles = (profilesData ?? []) as ProfileRow[];
 
-  return <AdminUsers initial={profiles} />;
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-sm text-foreground/70">Admin</div>
+        <div className="flex items-center gap-2">
+          <Button asChild size="sm" variant="outline">
+            <Link href="/forum/admin/categories">Kategórie</Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/forum">Feed</Link>
+          </Button>
+        </div>
+      </div>
+      <AdminUsers initial={profiles} />
+    </div>
+  );
 }

@@ -62,6 +62,7 @@ export default async function MePage() {
     const { data: myReactions } = await supabase
       .from("reactions")
       .select("target_id")
+      .eq("user_id", user.sub)
       .eq("target_type", "post")
       .eq("kind", "helpful")
       .in("target_id", postIds);

@@ -12,6 +12,7 @@ type SearchParams = {
   type?: string;
   lang?: string;
   q?: string;
+  sort?: string;
 };
 
 export default async function ForumHome({
@@ -25,14 +26,33 @@ export default async function ForumHome({
   const type = (sp.type?.trim() as PostType | "") || "";
   const lang = (sp.lang?.trim() as PostLang | "") || "";
   const q = sp.q?.trim() || "";
+  const sort = (sp.sort?.trim() || "new").toLowerCase();
 
   const supabase = await createClient();
+
+  // Categories from DB (admin managed). Fallback to constants if the table isn't there yet.
+  let categories: string[] = [...CATEGORIES];
+  try {
+    const { data: catRows, error: catErr } = await supabase
+      .from("forum_categories")
+      .select("name,is_active,sort_order")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true });
+    if (!catErr && Array.isArray(catRows) && catRows.length) {
+      categories = (catRows as any[]).map((r) => String(r.name));
+    }
+  } catch {
+    // ignore
+  }
+
+  const limit = sort === "helpful" || sort === "comments" ? 200 : 50;
 
   let query = supabase
     .from("posts")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(limit);
 
   if (category) query = query.eq("category", category);
   if (tag) query = query.contains("tags", [tag]);
@@ -42,7 +62,7 @@ export default async function ForumHome({
 
   const { data, error } = await query;
 
-  const posts = (data ?? []) as PostRow[];
+  let posts = (data ?? []) as PostRow[];
 
   // Metrics (comments + helpful) for compact feed cards
   const postIds = posts.map((p) => p.id);
@@ -68,6 +88,7 @@ export default async function ForumHome({
     const { data: myReactions } = await supabase
       .from("reactions")
       .select("target_id")
+      .eq("user_id", me.sub)
       .eq("target_type", "post")
       .eq("kind", "helpful")
       .in("target_id", postIds);
@@ -86,6 +107,25 @@ export default async function ForumHome({
     } as PostRow & any;
   });
 
+  // Sorting (server-side in JS based on metrics)
+  let sorted = postsWithMetrics;
+  if (sort === "helpful") {
+    sorted = [...postsWithMetrics].sort((a: any, b: any) => {
+      const diff = (b.helpful_count ?? 0) - (a.helpful_count ?? 0);
+      if (diff !== 0) return diff;
+      return String(b.created_at).localeCompare(String(a.created_at));
+    });
+  } else if (sort === "comments") {
+    sorted = [...postsWithMetrics].sort((a: any, b: any) => {
+      const diff = (b.comment_count ?? 0) - (a.comment_count ?? 0);
+      if (diff !== 0) return diff;
+      return String(b.created_at).localeCompare(String(a.created_at));
+    });
+  }
+
+  // keep the UI manageable
+  const shown = sorted.slice(0, 50);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
@@ -100,10 +140,33 @@ export default async function ForumHome({
         </Button>
       </div>
 
+      {/* Groups (categories) */}
+      <div className="flex flex-wrap gap-2">
+        <Link
+          href="/forum"
+          className={`text-xs px-3 py-1 rounded-full border border-foreground/10 hover:border-foreground/30 ${
+            !category ? "bg-foreground/5" : ""
+          }`}
+        >
+          Všetko
+        </Link>
+        {categories.map((c) => (
+          <Link
+            key={c}
+            href={`/forum?category=${encodeURIComponent(c)}`}
+            className={`text-xs px-3 py-1 rounded-full border border-foreground/10 hover:border-foreground/30 ${
+              category === c ? "bg-foreground/5" : ""
+            }`}
+          >
+            {c}
+          </Link>
+        ))}
+      </div>
+
       <form
         action="/forum"
         method="get"
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 p-3 rounded-lg border border-foreground/10"
+        className="sticky top-3 z-20 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 p-3 rounded-lg border border-foreground/10 bg-background/70 backdrop-blur"
       >
         <div className="flex flex-col gap-1">
           <label className="text-xs text-foreground/60">Hľadať</label>
@@ -123,7 +186,7 @@ export default async function ForumHome({
             className="h-9 rounded-md border border-foreground/10 bg-transparent px-2 text-sm"
           >
             <option value="">Všetko</option>
-            {CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
@@ -173,7 +236,20 @@ export default async function ForumHome({
           />
         </div>
 
-        <div className="lg:col-span-5 flex items-center gap-2">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-foreground/60">Zoradiť</label>
+          <select
+            name="sort"
+            defaultValue={sort}
+            className="h-9 rounded-md border border-foreground/10 bg-transparent px-2 text-sm"
+          >
+            <option value="new">Najnovšie</option>
+            <option value="helpful">Najviac 👍</option>
+            <option value="comments">Najviac 💬</option>
+          </select>
+        </div>
+
+        <div className="lg:col-span-6 flex items-center gap-2">
           <Button type="submit" size="sm">
             Použiť filtre
           </Button>
@@ -197,14 +273,14 @@ export default async function ForumHome({
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {postsWithMetrics.map((p) => (
+          {shown.map((p) => (
             <PostCard key={p.id} post={p} />
           ))}
         </div>
       )}
 
       <div className="text-xs text-foreground/60">
-        Zobrazených: {posts.length} (max 50)
+        Zobrazených: {shown.length} (max 50) • Sort: {sort}
       </div>
     </div>
   );

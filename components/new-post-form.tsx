@@ -14,11 +14,18 @@ import type { PostLang, PostType } from "@/lib/forum/types";
 const MAX_IMAGES = 5;
 const MAX_IMAGE_MB = 10;
 
-export function NewPostForm({ userId }: { userId: string }) {
+export function NewPostForm({
+  userId,
+  categories,
+}: {
+  userId: string;
+  categories: string[];
+}) {
   const router = useRouter();
   const [type, setType] = useState<PostType>("ai_output");
   const [lang, setLang] = useState<PostLang>("sk");
-  const [category, setCategory] = useState<string>(CATEGORIES[0]);
+  const categoryOptions = categories?.length ? categories : [...CATEGORIES];
+  const [category, setCategory] = useState<string>(categoryOptions[0] || "Meta");
   const [title, setTitle] = useState("");
   const [tagsText, setTagsText] = useState("");
   const [isProject, setIsProject] = useState(false);
@@ -176,7 +183,7 @@ export function NewPostForm({ userId }: { userId: string }) {
                 onChange={(e) => setCategory(e.target.value)}
                 className="h-9 rounded-md border border-foreground/10 bg-transparent px-2 text-sm"
               >
-                {CATEGORIES.map((c) => (
+                {categoryOptions.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>

@@ -85,6 +85,7 @@ export default async function PublicProfilePage({
     const { data: myReactions } = await supabase
       .from("reactions")
       .select("target_id")
+      .eq("user_id", viewer.sub)
       .eq("target_type", "post")
       .eq("kind", "helpful")
       .in("target_id", postIds);
@@ -109,6 +110,12 @@ export default async function PublicProfilePage({
         </div>
         <Link href="/forum" className="text-sm underline">← späť</Link>
       </div>
+
+      {typedProfile.is_public === false ? (
+        <div className="p-4 rounded-lg border border-foreground/10 text-sm text-foreground/70">
+          Tento profil nie je vo verejnom zozname <span className="font-medium">Ľudia</span>, ale je dostupný cez priamy link.
+        </div>
+      ) : null}
 
       {typedProfile.bio ? (
         <div className="p-4 rounded-lg border border-foreground/10">
