@@ -10,7 +10,7 @@ export default function ForumLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen flex flex-col viora-bg">
+    <div className="min-h-screen flex flex-col">
       <header className="border-b border-b-foreground/10">
         <div className="mx-auto max-w-5xl flex items-center justify-between p-4">
           <div className="flex items-center gap-4">

@@ -7,7 +7,9 @@ import type { PostRow } from "@/lib/forum/types";
 import { formatDateTime, shortId } from "@/lib/forum/format";
 
 function typeLabel(type: PostRow["type"]) {
-  return type === "request" ? "Dopyt" : "AI výstup";
+  if (type === "request") return "Dopyt";
+  if (type === "product") return "Produkt";
+  return "AI výstup";
 }
 
 export function PostCard({ post }: { post: PostRow }) {

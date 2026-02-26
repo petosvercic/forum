@@ -1,4 +1,4 @@
-export type PostType = "ai_output" | "request";
+export type PostType = "ai_output" | "request" | "product";
 export type PostStatus = "open" | "solved" | "archived";
 export type PostLang = "sk" | "cz" | "mix";
 

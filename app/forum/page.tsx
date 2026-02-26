@@ -46,7 +46,7 @@ export default async function ForumHome({
     // ignore
   }
 
-  const limit = sort === "helpful" || sort === "comments" ? 200 : 50;
+  const limit = sort === "helpful" || sort === "comments" || sort === "relevance" ? 200 : 50;
 
   let query = supabase
     .from("posts")
@@ -58,7 +58,15 @@ export default async function ForumHome({
   if (tag) query = query.contains("tags", [tag]);
   if (type) query = query.eq("type", type);
   if (lang) query = query.eq("lang", lang);
-  if (q) query = query.ilike("title", `%${q}%`);
+  if (q) {
+    if (sort === "relevance") {
+      const like = `%${q}%`;
+      // Search broadly; scoring will do the final ordering.
+      query = query.or(`title.ilike.${like},context.ilike.${like},prompt.ilike.${like},output.ilike.${like}`);
+    } else {
+      query = query.ilike("title", `%${q}%`);
+    }
+  }
 
   const { data, error } = await query;
 
@@ -246,6 +254,7 @@ export default async function ForumHome({
             <option value="new">Najnovšie</option>
             <option value="helpful">Najviac 👍</option>
             <option value="comments">Najviac 💬</option>
+              <option value="relevance">Relevancia</option>
           </select>
         </div>
 

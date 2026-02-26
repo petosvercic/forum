@@ -146,7 +146,7 @@ export default async function PostPage({
             <Badge
               variant={typedPost.type === "request" ? "default" : "secondary"}
             >
-              {typedPost.type === "request" ? "Dopyt" : "AI výstup"}
+              {typedPost.type === "request" ? "Dopyt" : (typedPost.type === "product" ? "Produkt" : "AI výstup")}
             </Badge>
             <Badge variant="outline">{typedPost.category}</Badge>
             <Badge variant="outline">{typedPost.lang.toUpperCase()}</Badge>
