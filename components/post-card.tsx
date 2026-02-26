@@ -10,6 +10,7 @@ function typeLabel(type: PostRow["type"]) {
 }
 
 export function PostCard({ post }: { post: PostRow }) {
+  const firstImage = post.image_urls?.[0];
   return (
     <Card className="hover:bg-foreground/[0.02] transition">
       <CardHeader className="space-y-2">
@@ -43,20 +44,33 @@ export function PostCard({ post }: { post: PostRow }) {
           ))}
         </div>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {post.context ? (
-          <p className="text-sm text-foreground/80 max-h-16 overflow-hidden">
-            {post.context}
-          </p>
-        ) : post.output ? (
-          <p className="text-sm text-foreground/80 max-h-16 overflow-hidden">
-            {post.output}
-          </p>
-        ) : (
-          <p className="text-sm text-foreground/60">
-            Bez popisu. Autor: {shortId(post.author_id)}
-          </p>
-        )}
+      <CardContent>
+        <div className="flex gap-3">
+          <div className="flex-1 space-y-2">
+            {post.context ? (
+              <p className="text-sm text-foreground/80 max-h-16 overflow-hidden">
+                {post.context}
+              </p>
+            ) : post.output ? (
+              <p className="text-sm text-foreground/80 max-h-16 overflow-hidden">
+                {post.output}
+              </p>
+            ) : (
+              <p className="text-sm text-foreground/60">
+                Bez popisu. Autor: {shortId(post.author_id)}
+              </p>
+            )}
+          </div>
+
+          {firstImage ? (
+            <img
+              src={firstImage}
+              alt=""
+              loading="lazy"
+              className="w-28 h-20 object-cover rounded-md border border-foreground/10"
+            />
+          ) : null}
+        </div>
       </CardContent>
     </Card>
   );

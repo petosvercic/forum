@@ -32,7 +32,7 @@ export default function ForumLayout({
 
           <div className="flex items-center gap-3">
             <ThemeSwitcher />
-            <Suspense fallback={<div className="text-sm text-foreground/60">â€¦</div>}>
+            <Suspense fallback={<div className="text-sm text-foreground/60">...</div>}>
               <AuthButton />
             </Suspense>
           </div>

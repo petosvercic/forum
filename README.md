@@ -1,10 +1,16 @@
 <a href="https://demo-nextjs-with-supabase.vercel.app/">
   <img alt="Next.js and Supabase Starter Kit - the fastest way to build apps with Next.js and Supabase" src="https://demo-nextjs-with-supabase.vercel.app/opengraph-image.png">
-  <h1 align="center">Next.js and Supabase Starter Kit</h1>
+  <h1 align="center">Viora Forum</h1>
 </a>
 
 <p align="center">
- The fastest way to build apps with Next.js and Supabase
+Viora Forum is a SK/CZ community tool for sharing AI outputs, requests, and building a portfolio of work.
+
+## Important: Supabase migration (roles + images)
+
+To enable **admin/moderator roles** and **image uploads**, run:
+
+- `supabase/VIORA_MIGRATION.sql` in Supabase Dashboard → SQL Editor
 </p>
 
 <p align="center">

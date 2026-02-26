@@ -11,6 +11,9 @@ import { Label } from "@/components/ui/label";
 import { CATEGORIES, POST_LANGS, POST_TYPES, normalizeTags } from "@/lib/forum/constants";
 import type { PostLang, PostType } from "@/lib/forum/types";
 
+const MAX_IMAGES = 5;
+const MAX_IMAGE_MB = 10;
+
 export function NewPostForm({ userId }: { userId: string }) {
   const router = useRouter();
   const [type, setType] = useState<PostType>("ai_output");
@@ -22,6 +25,7 @@ export function NewPostForm({ userId }: { userId: string }) {
   const [context, setContext] = useState("");
   const [prompt, setPrompt] = useState("");
   const [output, setOutput] = useState("");
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,6 +35,19 @@ export function NewPostForm({ userId }: { userId: string }) {
     if (!isProject) return base.filter((t) => t !== "project");
     return base;
   }, [tagsText, isProject]);
+
+  const onPickImages = (files: FileList | null) => {
+    const picked = Array.from(files ?? []).slice(0, MAX_IMAGES);
+
+    const tooBig = picked.find((f) => f.size > MAX_IMAGE_MB * 1024 * 1024);
+    if (tooBig) {
+      setError(`Obrázok "${tooBig.name}" je príliš veľký. Max ${MAX_IMAGE_MB} MB.`);
+      return;
+    }
+
+    setError(null);
+    setImageFiles(picked);
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +63,7 @@ export function NewPostForm({ userId }: { userId: string }) {
     try {
       const supabase = createClient();
 
+      // 1) Insert post first
       const payload = {
         author_id: userId,
         type,
@@ -67,7 +85,44 @@ export function NewPostForm({ userId }: { userId: string }) {
       if (error) throw error;
       if (!data?.id) throw new Error("Neočakávaná odpoveď z databázy");
 
-      router.push(`/forum/p/${data.id}`);
+      const postId = data.id as string;
+
+      // 2) Upload images (optional)
+      let imagesFailed = false;
+      if (imageFiles.length) {
+        try {
+          const urls: string[] = [];
+
+          for (const file of imageFiles) {
+            const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+            const fileName = `${crypto.randomUUID()}.${ext}`;
+            const path = `${userId}/${postId}/${fileName}`;
+
+            const { error: upErr } = await supabase
+              .storage
+              .from("post-images")
+              .upload(path, file, { upsert: false, cacheControl: "3600" });
+
+            if (upErr) throw upErr;
+
+            const { data: pub } = supabase.storage.from("post-images").getPublicUrl(path);
+            if (pub?.publicUrl) urls.push(pub.publicUrl);
+          }
+
+          if (urls.length) {
+            const { error: updErr } = await supabase
+              .from("posts")
+              .update({ image_urls: urls })
+              .eq("id", postId);
+
+            if (updErr) throw updErr;
+          }
+        } catch {
+          imagesFailed = true;
+        }
+      }
+
+      router.push(imagesFailed ? `/forum/p/${postId}?img=failed` : `/forum/p/${postId}`);
       router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Nastala chyba");
@@ -143,7 +198,11 @@ export function NewPostForm({ userId }: { userId: string }) {
           <div className="flex flex-col gap-1">
             <Label htmlFor="tags">Tagy</Label>
             <label className="mt-1 flex items-center gap-2 text-xs text-foreground/70">
-              <input type="checkbox" checked={isProject} onChange={(e) => setIsProject(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={isProject}
+                onChange={(e) => setIsProject(e.target.checked)}
+              />
               Toto je projekt (zobrazí sa v portfóliu)
             </label>
             <Input
@@ -153,7 +212,8 @@ export function NewPostForm({ userId }: { userId: string }) {
               placeholder="supabase, nextjs, elektro"
             />
             <div className="text-xs text-foreground/60">
-              Rozdeľ čiarkou. Uloží sa max 12 tagov. {tags.length ? (
+              Rozdeľ čiarkou. Uloží sa max 12 tagov.{" "}
+              {tags.length ? (
                 <span className="ml-2">Preview: {tags.map((t) => `#${t}`).join(" ")}</span>
               ) : null}
             </div>
@@ -206,6 +266,21 @@ export function NewPostForm({ userId }: { userId: string }) {
             </div>
           )}
 
+          <div className="flex flex-col gap-1">
+            <Label>Obrázky (voliteľné)</Label>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => onPickImages(e.target.files)}
+              className="block text-sm"
+            />
+            <div className="text-xs text-foreground/60">
+              Max {MAX_IMAGES} obrázkov, každý do {MAX_IMAGE_MB} MB. (Ukladá sa do Supabase Storage bucketu <span className="font-mono">post-images</span>.)
+              {imageFiles.length ? <span className="ml-2">Vybrané: {imageFiles.length}</span> : null}
+            </div>
+          </div>
+
           {error ? <p className="text-sm text-red-500">{error}</p> : null}
 
           <div className="flex items-center gap-2">
@@ -218,8 +293,7 @@ export function NewPostForm({ userId }: { userId: string }) {
           </div>
 
           <p className="text-xs text-foreground/60">
-            Poznámka: ak riešiš elektro / zdravie / bezpečnosť, dopíš jasné
-            upozornenie. AI môže trepať.
+            Poznámka: ak riešiš elektro / zdravie / bezpečnosť, dopíš jasné upozornenie. AI môže trepať.
           </p>
         </form>
       </CardContent>

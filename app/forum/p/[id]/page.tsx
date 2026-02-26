@@ -3,16 +3,21 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CommentForm } from "@/components/comment-form";
+import { DeleteCommentButton, DeletePostButton } from "@/components/moderation-buttons";
 import { createClient } from "@/lib/supabase/server";
 import type { CommentRow, PostRow } from "@/lib/forum/types";
 import { formatDateTime, shortId } from "@/lib/forum/format";
 
 export default async function PostPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ img?: string }>;
 }) {
   const { id } = await params;
+  const sp = searchParams ? await searchParams : {};
+  const imagesFailed = sp.img === "failed";
   const supabase = await createClient();
 
   const { data: post, error: postError } = await supabase
@@ -49,8 +54,27 @@ export default async function PostPage({
   const { data: claimsData } = await supabase.auth.getClaims();
   const user = claimsData?.claims;
 
+  // role lookup (optional, requires DB migration adding profiles.role)
+  let role: string | null = null;
+  if (user?.sub) {
+    const { data: meProfile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.sub)
+      .maybeSingle();
+    role = (meProfile as any)?.role ?? null;
+  }
+
+  const isMod = role === "moderator" || role === "admin";
+  const canDeletePost = isMod || (!!user?.sub && user.sub === typedPost.author_id);
+
   return (
     <div className="flex flex-col gap-5">
+      {imagesFailed ? (
+        <div className="p-4 rounded-lg border border-amber-500/30 bg-amber-500/10 text-sm">
+          Príspevok sa uložil, ale obrázky sa nepodarilo pridať. Skontroluj, že máš v Supabase vytvorený Storage bucket <span className="font-mono">post-images</span> a spustenú migráciu v <span className="font-mono">supabase/VIORA_MIGRATION.sql</span>.
+        </div>
+      ) : null}
       <div className="flex items-center justify-between gap-3">
         <Link href="/forum" className="text-sm text-foreground/70 hover:underline">
           ← späť
@@ -75,6 +99,13 @@ export default async function PostPage({
             </span>
           </div>
           <h1 className="text-2xl font-bold leading-snug">{typedPost.title}</h1>
+
+          {canDeletePost ? (
+            <div className="flex justify-end">
+              <DeletePostButton postId={id} />
+            </div>
+          ) : null}
+
           {typedPost.tags?.length ? (
             <div className="flex flex-wrap gap-1.5">
               {typedPost.tags.map((t) => (
@@ -90,6 +121,30 @@ export default async function PostPage({
           ) : null}
         </CardHeader>
         <CardContent className="space-y-4">
+          {typedPost.image_urls?.length ? (
+            <div>
+              <h2 className="text-sm font-semibold mb-2">Obrázky</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {typedPost.image_urls.map((url) => (
+                  <a
+                    key={url}
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block"
+                  >
+                    <img
+                      src={url}
+                      alt=""
+                      loading="lazy"
+                      className="w-full max-h-80 object-contain rounded-md border border-foreground/10 bg-background"
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           {typedPost.context ? (
             <div>
               <h2 className="text-sm font-semibold mb-1">Kontext</h2>
@@ -148,9 +203,14 @@ export default async function PostPage({
             {comments.map((c) => (
               <Card key={c.id}>
                 <CardHeader className="py-3">
-                  <div className="flex items-center justify-between text-xs text-foreground/60">
+                  <div className="flex items-center justify-between gap-3 text-xs text-foreground/60">
                     <span>Autor: {shortId(c.author_id)}</span>
-                    <span>{formatDateTime(c.created_at)}</span>
+                    <div className="flex items-center gap-2">
+                      <span>{formatDateTime(c.created_at)}</span>
+                      {(isMod || (!!user?.sub && user.sub === c.author_id)) ? (
+                        <DeleteCommentButton commentId={c.id} />
+                      ) : null}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0 pb-4">
