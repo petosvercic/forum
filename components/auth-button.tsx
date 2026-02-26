@@ -19,6 +19,7 @@ export async function AuthButton() {
   }
 
   const isAdmin = role === "admin";
+  const isMod = role === "moderator" || role === "admin";
 
   return user?.sub ? (
     <div className="flex items-center gap-2">
@@ -28,6 +29,11 @@ export async function AuthButton() {
       {isAdmin ? (
         <Button asChild size="sm" variant="outline">
           <Link href="/forum/admin">Admin</Link>
+        </Button>
+      ) : null}
+      {isMod ? (
+        <Button asChild size="sm" variant="outline">
+          <Link href="/forum/moderation">Moderácia</Link>
         </Button>
       ) : null}
       <Button asChild size="sm" variant="outline">

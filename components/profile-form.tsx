@@ -15,10 +15,12 @@ export function ProfileForm({
   userId,
   initial,
   email,
+  initialContactEmail,
 }: {
   userId: string;
   email: string;
   initial: ProfileRow | null;
+  initialContactEmail?: string | null;
 }) {
   const router = useRouter();
   const [handle, setHandle] = useState(initial?.handle ?? "");
@@ -26,6 +28,7 @@ export function ProfileForm({
   const [bio, setBio] = useState(initial?.bio ?? "");
   const [region, setRegion] = useState(initial?.region ?? "");
   const [skillsText, setSkillsText] = useState((initial?.skills ?? []).join(", "));
+  const [contactEmail, setContactEmail] = useState(initialContactEmail ?? "");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -51,6 +54,17 @@ export function ProfileForm({
 
       const { error } = await supabase.from("profiles").upsert(payload);
       if (error) throw error;
+
+      // Contact email is stored separately (not visible to anonymous users).
+      const trimmedContact = contactEmail.trim();
+      if (trimmedContact) {
+        const { error: ceErr } = await supabase
+          .from("profile_contacts")
+          .upsert({ profile_id: userId, contact_email: trimmedContact });
+        if (ceErr) throw ceErr;
+      } else {
+        await supabase.from("profile_contacts").delete().eq("profile_id", userId);
+      }
 
       setSuccess(true);
       router.refresh();
@@ -108,6 +122,20 @@ export function ProfileForm({
               onChange={(e) => setRegion(e.target.value)}
               placeholder="Bratislava / Košice / CZ…"
             />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="contactEmail">Kontaktný e-mail (voliteľné)</Label>
+            <Input
+              id="contactEmail"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              placeholder="napr. kontakt@domena.sk"
+              inputMode="email"
+            />
+            <div className="text-xs text-foreground/60">
+              Zobrazí sa len prihláseným používateľom na tvojom verejnom profile.
+            </div>
           </div>
 
           <div className="flex flex-col gap-1">

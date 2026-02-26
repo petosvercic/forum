@@ -27,6 +27,9 @@ export default function ForumLayout({
               <Link href="/forum/me" className="hover:text-foreground">
                 Profil
               </Link>
+              <Link href="/forum/people" className="hover:text-foreground">
+                Ľudia
+              </Link>
             </nav>
           </div>
 

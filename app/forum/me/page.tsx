@@ -25,6 +25,13 @@ export default async function MePage() {
 
   const profile = (profileData ?? null) as ProfileRow | null;
 
+  const { data: contactRow } = await supabase
+    .from("profile_contacts")
+    .select("contact_email")
+    .eq("profile_id", user.sub)
+    .maybeSingle();
+  const contactEmail = (contactRow as any)?.contact_email ?? null;
+
   const { data: postsData } = await supabase
     .from("posts")
     .select("*")
@@ -35,6 +42,44 @@ export default async function MePage() {
   const myPosts = (postsData ?? []) as PostRow[];
   const myProjects = myPosts.filter((p) => (p.tags ?? []).includes("project"));
 
+  // Metrics (comments + helpful) and my helpful state for portfolio cards
+  const postIds = myPosts.map((p) => p.id);
+  const metricsMap = new Map<string, { comment_count: number; helpful_count: number }>();
+  if (postIds.length) {
+    const { data: metrics } = await supabase.rpc("get_post_metrics", { p_post_ids: postIds });
+    if (Array.isArray(metrics)) {
+      for (const row of metrics as any[]) {
+        metricsMap.set(row.post_id, {
+          comment_count: Number(row.comment_count ?? 0),
+          helpful_count: Number(row.helpful_count ?? 0),
+        });
+      }
+    }
+  }
+
+  const myHelpful = new Set<string>();
+  if (user?.sub && postIds.length) {
+    const { data: myReactions } = await supabase
+      .from("reactions")
+      .select("target_id")
+      .eq("target_type", "post")
+      .eq("kind", "helpful")
+      .in("target_id", postIds);
+    for (const r of (myReactions ?? []) as any[]) {
+      if (r?.target_id) myHelpful.add(r.target_id);
+    }
+  }
+
+  const myPostsWithMetrics = myPosts.map((p) => {
+    const m = metricsMap.get(p.id);
+    return {
+      ...p,
+      comment_count: m?.comment_count ?? 0,
+      helpful_count: m?.helpful_count ?? 0,
+      viewer_helpful: myHelpful.has(p.id),
+    } as PostRow & any;
+  });
+
 
   return (
     <div className="flex flex-col gap-4">
@@ -44,7 +89,12 @@ export default async function MePage() {
           Nastav si handle, skills a región. Toto bude neskôr základ na prepojenie dopytu a ponuky.
         </p>
       </div>
-      <ProfileForm userId={user.sub} email={user.email} initial={profile} />
+      <ProfileForm
+        userId={user.sub}
+        email={user.email}
+        initial={profile}
+        initialContactEmail={contactEmail}
+      />
 
       <div className="mt-2 flex flex-col gap-3">
         <div className="flex items-end justify-between gap-3">
@@ -61,7 +111,7 @@ export default async function MePage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3">
-            {myPosts.map((p) => (
+            {myPostsWithMetrics.map((p) => (
               <PostCard key={p.id} post={p} />
             ))}
           </div>

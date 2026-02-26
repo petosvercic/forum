@@ -44,6 +44,48 @@ export default async function ForumHome({
 
   const posts = (data ?? []) as PostRow[];
 
+  // Metrics (comments + helpful) for compact feed cards
+  const postIds = posts.map((p) => p.id);
+  const metricsMap = new Map<string, { comment_count: number; helpful_count: number }>();
+  if (postIds.length) {
+    const { data: metrics, error: metricsError } = await supabase
+      .rpc("get_post_metrics", { p_post_ids: postIds });
+    if (!metricsError && Array.isArray(metrics)) {
+      for (const row of metrics as any[]) {
+        metricsMap.set(row.post_id, {
+          comment_count: Number(row.comment_count ?? 0),
+          helpful_count: Number(row.helpful_count ?? 0),
+        });
+      }
+    }
+  }
+
+  // My helpful reactions (so the button can render active state)
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const me = claimsData?.claims;
+  const myHelpful = new Set<string>();
+  if (me?.sub && postIds.length) {
+    const { data: myReactions } = await supabase
+      .from("reactions")
+      .select("target_id")
+      .eq("target_type", "post")
+      .eq("kind", "helpful")
+      .in("target_id", postIds);
+    for (const r of (myReactions ?? []) as any[]) {
+      if (r?.target_id) myHelpful.add(r.target_id);
+    }
+  }
+
+  const postsWithMetrics = posts.map((p) => {
+    const m = metricsMap.get(p.id);
+    return {
+      ...p,
+      comment_count: m?.comment_count ?? 0,
+      helpful_count: m?.helpful_count ?? 0,
+      viewer_helpful: myHelpful.has(p.id),
+    } as PostRow & any;
+  });
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
@@ -155,7 +197,7 @@ export default async function ForumHome({
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {posts.map((p) => (
+          {postsWithMetrics.map((p) => (
             <PostCard key={p.id} post={p} />
           ))}
         </div>

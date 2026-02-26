@@ -4,6 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CommentForm } from "@/components/comment-form";
 import { DeleteCommentButton, DeletePostButton } from "@/components/moderation-buttons";
+import { HelpfulButton } from "@/components/helpful-button";
+import { ReportButton } from "@/components/report-button";
+import { HideToggleButton } from "@/components/hide-toggle";
 import { createClient } from "@/lib/supabase/server";
 import type { CommentRow, PostRow } from "@/lib/forum/types";
 import { formatDateTime, shortId } from "@/lib/forum/format";
@@ -68,6 +71,57 @@ export default async function PostPage({
   const isMod = role === "moderator" || role === "admin";
   const canDeletePost = isMod || (!!user?.sub && user.sub === typedPost.author_id);
 
+  // Helpful metrics
+  const commentIds = comments.map((c) => c.id);
+  let postHelpfulCount = 0;
+  const commentHelpful = new Map<string, number>();
+
+  const { data: postHelpfulRows } = await supabase.rpc("get_helpful_counts", {
+    p_target_type: "post",
+    p_target_ids: [id],
+  });
+  if (Array.isArray(postHelpfulRows) && postHelpfulRows[0]) {
+    postHelpfulCount = Number((postHelpfulRows as any[])[0]?.helpful_count ?? 0);
+  }
+
+  if (commentIds.length) {
+    const { data: cRows } = await supabase.rpc("get_helpful_counts", {
+      p_target_type: "comment",
+      p_target_ids: commentIds,
+    });
+    if (Array.isArray(cRows)) {
+      for (const r of cRows as any[]) {
+        commentHelpful.set(r.target_id, Number(r.helpful_count ?? 0));
+      }
+    }
+  }
+
+  // My helpful active state
+  let myPostHelpful = false;
+  const myCommentHelpful = new Set<string>();
+  if (user?.sub) {
+    const { data: minePost } = await supabase
+      .from("reactions")
+      .select("target_id")
+      .eq("target_type", "post")
+      .eq("kind", "helpful")
+      .eq("target_id", id)
+      .maybeSingle();
+    myPostHelpful = !!(minePost as any)?.target_id;
+
+    if (commentIds.length) {
+      const { data: mineComments } = await supabase
+        .from("reactions")
+        .select("target_id")
+        .eq("target_type", "comment")
+        .eq("kind", "helpful")
+        .in("target_id", commentIds);
+      for (const r of (mineComments ?? []) as any[]) {
+        if (r?.target_id) myCommentHelpful.add(r.target_id);
+      }
+    }
+  }
+
   return (
     <div className="flex flex-col gap-5">
       {imagesFailed ? (
@@ -94,11 +148,27 @@ export default async function PostPage({
             </Badge>
             <Badge variant="outline">{typedPost.category}</Badge>
             <Badge variant="outline">{typedPost.lang.toUpperCase()}</Badge>
+            {typedPost.is_hidden ? <Badge variant="destructive">Skryté</Badge> : null}
             <span className="text-xs text-foreground/60 ml-auto">
               {formatDateTime(typedPost.created_at)}
             </span>
           </div>
           <h1 className="text-2xl font-bold leading-snug">{typedPost.title}</h1>
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <HelpfulButton
+                targetType="post"
+                targetId={id}
+                initialCount={postHelpfulCount}
+                initialActive={myPostHelpful}
+              />
+              {user?.sub ? <ReportButton targetType="post" targetId={id} /> : null}
+            </div>
+            {isMod ? (
+              <HideToggleButton table="posts" id={id} isHidden={!!typedPost.is_hidden} />
+            ) : null}
+          </div>
 
           {canDeletePost ? (
             <div className="flex justify-end">
@@ -207,6 +277,20 @@ export default async function PostPage({
                     <span>Autor: {shortId(c.author_id)}</span>
                     <div className="flex items-center gap-2">
                       <span>{formatDateTime(c.created_at)}</span>
+                      {c.is_hidden ? <span className="text-amber-600">Skryté</span> : null}
+                      <HelpfulButton
+                        targetType="comment"
+                        targetId={c.id}
+                        initialCount={commentHelpful.get(c.id) ?? 0}
+                        initialActive={myCommentHelpful.has(c.id)}
+                        size="sm"
+                      />
+                      {user?.sub ? (
+                        <ReportButton targetType="comment" targetId={c.id} size="sm" />
+                      ) : null}
+                      {isMod ? (
+                        <HideToggleButton table="comments" id={c.id} isHidden={!!c.is_hidden} size="sm" />
+                      ) : null}
                       {(isMod || (!!user?.sub && user.sub === c.author_id)) ? (
                         <DeleteCommentButton commentId={c.id} />
                       ) : null}
