@@ -24,15 +24,25 @@ function isMediaFile(f: File) {
 export function NewPostForm({
   userId,
   categories,
+  initialType,
+  initialLang,
+  initialCategory,
 }: {
   userId: string;
   categories: string[];
+  initialType?: PostType;
+  initialLang?: PostLang;
+  initialCategory?: string;
 }) {
   const router = useRouter();
-  const [type, setType] = useState<PostType>("ai_output");
-  const [lang, setLang] = useState<PostLang>("sk");
+  const [type, setType] = useState<PostType>(initialType ?? "ai_output");
+  const [lang, setLang] = useState<PostLang>(initialLang ?? "sk");
   const categoryOptions = categories?.length ? categories : [...CATEGORIES];
-  const [category, setCategory] = useState<string>(categoryOptions[0] || "Meta");
+  const initialCategorySafe = useMemo(() => {
+    if (initialCategory && categoryOptions.includes(initialCategory)) return initialCategory;
+    return categoryOptions[0] || "Meta";
+  }, [initialCategory, categoryOptions]);
+  const [category, setCategory] = useState<string>(initialCategorySafe);
   const [title, setTitle] = useState("");
   const [tagsText, setTagsText] = useState("");
   const [context, setContext] = useState("");

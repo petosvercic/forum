@@ -19,25 +19,6 @@ type SearchParams = {
 
 type CategoryOpt = { name: string; slug: string };
 
-type FeedState = { category: string; tag: string; type: string; lang: string; q: string; sort: string };
-
-function buildFeedHref(state: FeedState, updates: Partial<FeedState>) {
-  const p = new URLSearchParams();
-  const base: FeedState = { ...state, ...updates };
-
-  // Empty string => remove param
-  if (base.category) p.set("category", base.category);
-  if (base.tag) p.set("tag", base.tag);
-  if (base.type) p.set("type", base.type);
-  if (base.lang) p.set("lang", base.lang);
-  if (base.q) p.set("q", base.q);
-  if (base.sort && base.sort !== "new") p.set("sort", base.sort);
-
-  const qs = p.toString();
-  return qs ? `/forum?${qs}` : "/forum";
-}
-
-
 function scoreRelevance(p: any, q: string, tag: string) {
   const qq = q.trim().toLowerCase();
   const tt = tag.trim().toLowerCase();
@@ -214,58 +195,117 @@ export default async function ForumHome({
             Zdieľaj AI výstupy, pýtaj sa, diskutuj, overuj.
           </p>
         </div>
+
         <Button asChild>
-          <Link href="/forum/new">+ Nový príspevok</Link>
+          <Link
+            href={{
+              pathname: "/forum/new",
+              query: {
+                ...(category ? { category } : {}),
+                ...(type ? { type } : {}),
+                ...(lang ? { lang } : {}),
+              },
+            }}
+          >
+            + Nový príspevok
+          </Link>
         </Button>
       </div>
 
-            <div className="flex flex-col lg:flex-row gap-6">
-        <aside className="hidden lg:block w-64 shrink-0">
-          <div className="sticky top-3 rounded-lg border border-foreground/10 bg-background/70 backdrop-blur p-3 flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold">Skupiny</h2>
-              {selectedCat ? (
-                <ShareButton
-                  path={`/forum/c/${encodeURIComponent(selectedCat.slug)}`}
-                  title={`Viora • ${selectedCat.name}`}
-                  label="Zdieľať"
-                  size="sm"
-                  variant="outline"
-                />
-              ) : null}
-            </div>
+      {/* Layout: sidebar (desktop) + content */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Sidebar */}
+        <aside className="hidden lg:block w-72 shrink-0">
+          <div className="sticky top-3 flex flex-col gap-4">
+            <div className="rounded-lg border border-foreground/10 bg-background/70 backdrop-blur p-3">
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-semibold text-foreground/70">Kategórie</div>
+                {selectedCat ? (
+                  <ShareButton
+                    path={`/forum/c/${encodeURIComponent(selectedCat.slug)}`}
+                    title={`Viora • ${selectedCat.name}`}
+                    label="Zdieľať"
+                    size="sm"
+                    variant="outline"
+                  />
+                ) : null}
+              </div>
 
-            <div className="flex flex-col gap-1">
-              <Link
-                href={buildFeedHref({ category, tag, type, lang, q, sort }, { category: "" })}
-                className={`text-sm px-3 py-2 rounded-md border border-foreground/10 hover:border-foreground/30 ${
-                  !category ? "bg-foreground/5" : ""
-                }`}
-              >
-                Všetko
-              </Link>
-
-              {categories.map((c) => (
+              <div className="mt-2 flex flex-col gap-1">
                 <Link
-                  key={c.slug}
-                  href={buildFeedHref({ category, tag, type, lang, q, sort }, { category: c.name })}
-                  className={`text-sm px-3 py-2 rounded-md border border-foreground/10 hover:border-foreground/30 ${
-                    category === c.name ? "bg-foreground/5" : ""
+                  href={{
+                    pathname: "/forum",
+                    query: {
+                      ...(q ? { q } : {}),
+                      ...(tag ? { tag } : {}),
+                      ...(type ? { type } : {}),
+                      ...(lang ? { lang } : {}),
+                      ...(sort ? { sort } : {}),
+                    },
+                  }}
+                  className={`group flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-foreground/5 ${
+                    !category ? "bg-foreground/5" : ""
                   }`}
                 >
-                  {c.name}
+                  <span>Všetko</span>
                 </Link>
-              ))}
+
+                {categories.map((c) => (
+                  <div key={c.slug} className="group flex items-center justify-between rounded-md hover:bg-foreground/5">
+                    <Link
+                      href={{
+                        pathname: "/forum",
+                        query: {
+                          ...(q ? { q } : {}),
+                          ...(tag ? { tag } : {}),
+                          ...(type ? { type } : {}),
+                          ...(lang ? { lang } : {}),
+                          ...(sort ? { sort } : {}),
+                          category: c.name,
+                        },
+                      }}
+                      className={`flex-1 px-2 py-1.5 text-sm ${
+                        category === c.name ? "bg-foreground/5 rounded-md" : ""
+                      }`}
+                    >
+                      {c.name}
+                    </Link>
+
+                    <Link
+                      href={{
+                        pathname: "/forum/new",
+                        query: {
+                          category: c.name,
+                          type: type || "ai_output",
+                          lang: lang || "sk",
+                        },
+                      }}
+                      className="mx-1 inline-flex h-7 w-7 items-center justify-center rounded-md border border-foreground/10 text-xs text-foreground/70 hover:border-foreground/30 hover:bg-foreground/5"
+                      title={`Nový príspevok do: ${c.name}`}
+                      aria-label={`Nový príspevok do: ${c.name}`}
+                    >
+                      +
+                    </Link>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <div className="h-px bg-foreground/10" />
-
-            <div className="flex flex-col gap-2">
-              <h3 className="text-xs font-semibold text-foreground/70">Typ</h3>
-              <div className="flex flex-col gap-1">
+            <div className="rounded-lg border border-foreground/10 bg-background/70 backdrop-blur p-3">
+              <div className="text-xs font-semibold text-foreground/70">Typ</div>
+              <div className="mt-2 flex flex-col gap-1">
                 <Link
-                  href={buildFeedHref({ category, tag, type, lang, q, sort }, { type: "" })}
-                  className={`text-sm px-3 py-2 rounded-md border border-foreground/10 hover:border-foreground/30 ${
+                  href={{
+                    pathname: "/forum",
+                    query: {
+                      ...(q ? { q } : {}),
+                      ...(tag ? { tag } : {}),
+                      ...(category ? { category } : {}),
+                      ...(lang ? { lang } : {}),
+                      ...(sort ? { sort } : {}),
+                    },
+                  }}
+                  className={`rounded-md px-2 py-1.5 text-sm hover:bg-foreground/5 ${
                     !type ? "bg-foreground/5" : ""
                   }`}
                 >
@@ -275,8 +315,18 @@ export default async function ForumHome({
                 {POST_TYPES.map((t) => (
                   <Link
                     key={t.value}
-                    href={buildFeedHref({ category, tag, type, lang, q, sort }, { type: t.value })}
-                    className={`text-sm px-3 py-2 rounded-md border border-foreground/10 hover:border-foreground/30 ${
+                    href={{
+                      pathname: "/forum",
+                      query: {
+                        ...(q ? { q } : {}),
+                        ...(tag ? { tag } : {}),
+                        ...(category ? { category } : {}),
+                        ...(lang ? { lang } : {}),
+                        ...(sort ? { sort } : {}),
+                        type: t.value,
+                      },
+                    }}
+                    className={`rounded-md px-2 py-1.5 text-sm hover:bg-foreground/5 ${
                       type === t.value ? "bg-foreground/5" : ""
                     }`}
                   >
@@ -288,164 +338,161 @@ export default async function ForumHome({
           </div>
         </aside>
 
-        <div className="min-w-0 flex-1 flex flex-col gap-6">
+        {/* Main content */}
+        <main className="flex-1 flex flex-col gap-6">
+          {/* Mobile category chips */}
+          <div className="flex flex-wrap items-center gap-2 lg:hidden">
+            <Link
+              href="/forum"
+              className={`text-xs px-3 py-1 rounded-full border border-foreground/10 hover:border-foreground/30 ${
+                !category ? "bg-foreground/5" : ""
+              }`}
+            >
+              Všetko
+            </Link>
 
-{/* Groups (categories) */}
-      <div className="flex flex-wrap items-center gap-2 lg:hidden">
-        <Link
-          href="/forum"
-          className={`text-xs px-3 py-1 rounded-full border border-foreground/10 hover:border-foreground/30 ${
-            !category ? "bg-foreground/5" : ""
-          }`}
-        >
-          Všetko
-        </Link>
-
-        {categories.map((c) => (
-          <Link
-            key={c.slug}
-            href={`/forum/c/${encodeURIComponent(c.slug)}`}
-            className={`text-xs px-3 py-1 rounded-full border border-foreground/10 hover:border-foreground/30 ${
-              category === c.name ? "bg-foreground/5" : ""
-            }`}
-          >
-            {c.name}
-          </Link>
-        ))}
-
-        {selectedCat ? (
-          <div className="ml-auto">
-            <ShareButton
-              path={`/forum/c/${encodeURIComponent(selectedCat.slug)}`}
-              title={`Viora • ${selectedCat.name}`}
-              label="Zdieľať skupinu"
-              size="sm"
-              variant="outline"
-            />
-          </div>
-        ) : null}
-      </div>
-
-      
-<form
-        action="/forum"
-        method="get"
-        className="sticky top-3 z-20 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 p-3 rounded-lg border border-foreground/10 bg-background/70 backdrop-blur"
-      >
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-foreground/60">Hľadať</label>
-          <input
-            name="q"
-            defaultValue={q}
-            placeholder="Názov…"
-            className="h-9 rounded-md border border-foreground/10 bg-transparent px-3 text-sm"
-          />
-        </div>
-
-        <div className="flex flex-col gap-1 lg:hidden">
-          <label className="text-xs text-foreground/60">Kategória</label>
-          <select
-            name="category"
-            defaultValue={category}
-            className="h-9 rounded-md border border-foreground/10 bg-transparent px-2 text-sm"
-          >
-            <option value="">Všetko</option>
             {categories.map((c) => (
-              <option key={c.slug} value={c.name}>
+              <Link
+                key={c.slug}
+                href={`/forum/c/${encodeURIComponent(c.slug)}`}
+                className={`text-xs px-3 py-1 rounded-full border border-foreground/10 hover:border-foreground/30 ${
+                  category === c.name ? "bg-foreground/5" : ""
+                }`}
+              >
                 {c.name}
-              </option>
+              </Link>
             ))}
-          </select>
-        </div>
 
-        <div className="flex flex-col gap-1 lg:hidden">
-          <label className="text-xs text-foreground/60">Typ</label>
-          <select
-            name="type"
-            defaultValue={type}
-            className="h-9 rounded-md border border-foreground/10 bg-transparent px-2 text-sm"
+            {selectedCat ? (
+              <div className="ml-auto">
+                <ShareButton
+                  path={`/forum/c/${encodeURIComponent(selectedCat.slug)}`}
+                  title={`Viora • ${selectedCat.name}`}
+                  label="Zdieľať skupinu"
+                  size="sm"
+                  variant="outline"
+                />
+              </div>
+            ) : null}
+          </div>
+
+          <form
+            action="/forum"
+            method="get"
+            className="sticky top-3 z-20 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 p-3 rounded-lg border border-foreground/10 bg-background/70 backdrop-blur"
           >
-            <option value="">Všetko</option>
-            {POST_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-        </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-foreground/60">Hľadať</label>
+              <input
+                name="q"
+                defaultValue={q}
+                placeholder="Názov…"
+                className="h-9 rounded-md border border-foreground/10 bg-transparent px-3 text-sm"
+              />
+            </div>
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-foreground/60">Jazyk</label>
-          <select
-            name="lang"
-            defaultValue={lang}
-            className="h-9 rounded-md border border-foreground/10 bg-transparent px-2 text-sm"
-          >
-            <option value="">Všetko</option>
-            {POST_LANGS.map((l) => (
-              <option key={l.value} value={l.value}>
-                {l.label}
-              </option>
-            ))}
-          </select>
-        </div>
+            <div className="flex flex-col gap-1 lg:hidden">
+              <label className="text-xs text-foreground/60">Kategória</label>
+              <select
+                name="category"
+                defaultValue={category}
+                className="h-9 rounded-md border border-foreground/10 bg-transparent px-2 text-sm"
+              >
+                <option value="">Všetko</option>
+                {categories.map((c) => (
+                  <option key={c.slug} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-foreground/60">Tag</label>
-          <input
-            name="tag"
-            defaultValue={tag}
-            placeholder="#supabase"
-            className="h-9 rounded-md border border-foreground/10 bg-transparent px-3 text-sm"
-          />
-        </div>
+            <div className="flex flex-col gap-1 lg:hidden">
+              <label className="text-xs text-foreground/60">Typ</label>
+              <select
+                name="type"
+                defaultValue={type}
+                className="h-9 rounded-md border border-foreground/10 bg-transparent px-2 text-sm"
+              >
+                <option value="">Všetko</option>
+                {POST_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-foreground/60">Zoradiť</label>
-          <select
-            name="sort"
-            defaultValue={sort}
-            className="h-9 rounded-md border border-foreground/10 bg-transparent px-2 text-sm"
-          >
-            <option value="new">Najnovšie</option>
-            <option value="relevance">Relevancia</option>
-            <option value="helpful">Najviac 👍</option>
-            <option value="comments">Najviac 💬</option>
-          </select>
-        </div>
+            <div className="flex flex-col gap-1 lg:hidden">
+              <label className="text-xs text-foreground/60">Jazyk</label>
+              <select
+                name="lang"
+                defaultValue={lang}
+                className="h-9 rounded-md border border-foreground/10 bg-transparent px-2 text-sm"
+              >
+                <option value="">Všetko</option>
+                {POST_LANGS.map((l) => (
+                  <option key={l.value} value={l.value}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <div className="lg:col-span-7 flex items-center gap-2">
-          <Button type="submit" size="sm">
-            Použiť filtre
-          </Button>
-          <Button type="button" size="sm" variant="outline" asChild>
-            <Link href="/forum">Reset</Link>
-          </Button>
-        </div>
-      </form>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-foreground/60">Tag</label>
+              <input
+                name="tag"
+                defaultValue={tag}
+                placeholder="#supabase"
+                className="h-9 rounded-md border border-foreground/10 bg-transparent px-3 text-sm"
+              />
+            </div>
 
-      {error ? (
-        <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/5">
-          <p className="text-sm text-red-500">
-            Nepodarilo sa načítať príspevky: {(error as any).message ?? String(error)}
-          </p>
-        </div>
-      ) : shown.length === 0 ? (
-        <div className="p-8 rounded-lg border border-foreground/10 text-center">
-          <p className="text-sm text-foreground/70">
-            Zatiaľ nič. Buď prvý a pridaj príspevok.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-3">
-          {shown.map((p: any) => (
-            <PostCard key={p.id} post={p} />
-          ))}
-        </div>
-      )}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-foreground/60">Zoradiť</label>
+              <select
+                name="sort"
+                defaultValue={sort}
+                className="h-9 rounded-md border border-foreground/10 bg-transparent px-2 text-sm"
+              >
+                <option value="new">Najnovšie</option>
+                <option value="relevance">Relevancia</option>
+                <option value="helpful">Najviac 👍</option>
+                <option value="comments">Najviac 💬</option>
+              </select>
+            </div>
 
-      <div className="text-xs text-foreground/60">Zobrazených: {shown.length} (max 50)</div>
-        </div>
+            <div className="lg:col-span-7 flex items-center gap-2">
+              <Button type="submit" size="sm">
+                Použiť filtre
+              </Button>
+              <Button type="button" size="sm" variant="outline" asChild>
+                <Link href="/forum">Reset</Link>
+              </Button>
+            </div>
+          </form>
+
+          {error ? (
+            <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/5">
+              <p className="text-sm text-red-500">
+                Nepodarilo sa načítať príspevky: {(error as any).message ?? String(error)}
+              </p>
+            </div>
+          ) : shown.length === 0 ? (
+            <div className="p-8 rounded-lg border border-foreground/10 text-center">
+              <p className="text-sm text-foreground/70">Zatiaľ nič. Buď prvý a pridaj príspevok.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3">
+              {shown.map((p: any) => (
+                <PostCard key={p.id} post={p} />
+              ))}
+            </div>
+          )}
+
+          <div className="text-xs text-foreground/60">Zobrazených: {shown.length} (max 50)</div>
+        </main>
       </div>
     </div>
   );
