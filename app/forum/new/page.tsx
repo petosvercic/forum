@@ -44,6 +44,15 @@ export default async function NewPostPage({
     redirect(`/auth/login?next=${encodeURIComponent(nextUrl)}`);
   }
 
+  const { data: meProfile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.sub)
+    .maybeSingle();
+
+  const role = (meProfile as any)?.role ?? "user";
+  const isMod = role === "admin" || role === "moderator";
+
   // Categories from DB (admin managed). Fallback to constants.
   let categories: { name: string; slug: string }[] = [...CATEGORIES].map((n) => ({ name: n, slug: "" }));
   try {
@@ -62,6 +71,11 @@ export default async function NewPostPage({
     }
   } catch {
     // ignore
+  }
+
+  const tutorialSlugs = new Set(["how-to", "projects", "qa"]);
+  if (!isMod) {
+    categories = categories.filter((c) => !tutorialSlugs.has(c.slug));
   }
 
   const categoryNames = categories.map((c) => c.name);
@@ -83,7 +97,7 @@ export default async function NewPostPage({
       <div>
         <h1 className="text-2xl font-bold">Pridať príspevok</h1>
         <p className="text-sm text-foreground/70">
-          Zdieľaj AI výstup alebo napíš dopyt o pomoc.
+          Zdieľaj AI výstup alebo napíš dopyt/ponuku.
         </p>
       </div>
 

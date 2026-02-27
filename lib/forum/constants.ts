@@ -13,7 +13,7 @@ export const CATEGORIES = [
 
 export const POST_TYPES = [
   { value: "ai_output", label: "AI výstup" },
-  { value: "request", label: "Dopyt o pomoc" },
+  { value: "request", label: "Dopyt/Ponuka" },
   { value: "product", label: "Produkt (projekt)" },
 ] as const;
 

@@ -1,4 +1,4 @@
-﻿/* eslint-disable no-console */
+/* eslint-disable no-console */
 
 /**
  * VIORA Forum autopatch (seed welcome obsah)
@@ -179,30 +179,42 @@ function seedPostsPayload(): PostInsert[] {
   const t = nowISO();
   const seedTag = `seed:${SEED_BATCH_ID}`;
 
+  const CAT_HOWTO = "Ako používať fórum";
+  const CAT_PROJECTS = "Projekty & spolupráce";
+  const CAT_QA = "Q&A / otázky";
+
   return [
-    // HOW-TO
+    // HOW-TO (pinned tutorial)
     {
       id: uuid(),
       author_id: AUTHOR_ID,
       type: "ai_output",
       status: "open",
       lang: "sk",
-      category: "how-to",
-      tags: ["welcome", seedTag],
+      category: CAT_HOWTO,
+      tags: ["pinned", "tutorial", "welcome", seedTag],
       title: "Začni tu: čo je toto fórum a prečo existuje",
-      context: "Onboarding pre nových ľudí. Cieľ: aby fórum nepôsobilo prázdne a aby ľudia vedeli, čo sem patrí.",
-      prompt: "Napíš krátky onboarding post pre fórum: čo sem patrí, ako písať otázky, ako pridávať AI výstupy.",
-      output:
-        [
-          "**Máš nápad. AI ti dala základ. Sám to nedáš.**",
-          "",
-          "Toto fórum je miesto, kde:",
-          "- zavesíš AI výstup / nápad / plán a ľudia ho vylepšia a overia",
-          "- požiadaš o pomoc s konkrétnym problémom (nie s existenciou)",
-          "- nájdeš spolupráce podľa skills, nie podľa papierov",
-          "",
-          "Pravidlo: keď dáš len hype a 0 detailov, dostaneš len hype a 0 pomoci.",
-        ].join("\n"),
+      context: "Onboarding pre nových ľudí. Cieľ: aby fórum nepôsobilo prázdne a aby bolo jasné čo/ako.",
+      prompt: null,
+      output: [
+        "👋 Vitaj.",
+        "",
+        "Toto fórum je miesto, kde sa AI výstup mení na reálnu vec.",
+        "Nie „pozri aký prompt som vymyslel“, ale „tu je plán/kód/text – pomôž mi to dotiahnuť“.",
+        "",
+        "✅ Sem patrí:",
+        "- AI plán / architektúra / kód, keď chceš ľudský reality-check",
+        "- konkrétne otázky s kontextom a logmi",
+        "- projekty a spolupráce (skills, čas, odmena)",
+        "",
+        "❌ Nepatrí sem:",
+        "- „sprav mi všetko“",
+        "- „nefunguje mi to“ bez chyby/logu",
+        "- čistý hype bez detailov",
+        "",
+        "Pravidlo: čím presnejšia otázka, tým lepšia odpoveď.",
+      ].join("
+"),
       is_seed: true,
       seed_batch_id: SEED_BATCH_ID,
       created_at: t,
@@ -214,102 +226,114 @@ function seedPostsPayload(): PostInsert[] {
       type: "request",
       status: "open",
       lang: "sk",
-      category: "how-to",
-      tags: ["template", seedTag],
+      category: CAT_HOWTO,
+      tags: ["pinned", "tutorial", "template", seedTag],
       title: "Šablóna príspevku: AI výstup → akcia",
-      context: "Skopíruj, vyplň, ušetríš všetkým čas.",
+      context: "Skopíruj, vyplň a ušetríš všetkým čas.",
       prompt: null,
-      output:
-        [
-          "Skopíruj a vyplň:",
-          "",
-          "1) **Cieľ (1 veta):**",
-          "2) **AI výstup (text/link):**",
-          "3) **Čo je už hotové:**",
-          "4) **Čo je problém / čo neviem:**",
-          "5) **Čo potrebujem od ľudí:**",
-          "6) **Časový rámec / priority:**",
-        ].join("\n"),
+      output: [
+        "🧩 Skopíruj a vyplň (90 sekúnd, ušetrí hodiny):",
+        "",
+        "1) Cieľ (1 veta):",
+        "2) AI výstup (text/link):",
+        "3) Čo je už hotové:",
+        "4) Čo je problém / čo neviem:",
+        "5) Čo potrebujem od ľudí (skills + čas):",
+        "6) Kritériá úspechu (ako spoznáme, že je to hotové):",
+        "",
+        "Tip: keď nevieš bod 4, ešte nevieš, čo sa pýtaš.",
+      ].join("
+"),
       is_seed: true,
       seed_batch_id: SEED_BATCH_ID,
       created_at: t,
       updated_at: t,
     },
 
-    // PROJECTS
+    // PROJECTS (pinned tutorial)
     {
       id: uuid(),
       author_id: AUTHOR_ID,
       type: "product",
       status: "open",
       lang: "sk",
-      category: "projects",
-      tags: ["collab", seedTag],
+      category: CAT_PROJECTS,
+      tags: ["pinned", "tutorial", "collab", seedTag],
       title: "Ako napísať spoluprácu, aby sa ti niekto ozval",
-      context: "Minimálny bríf pre spolupráce.",
+      context: "Minimálny bríf pre spolupráce (bez romantiky).",
       prompt: null,
-      output:
-        [
-          "Povedz ľuďom pravdu rýchlo:",
-          "- **Čo staviaš** (1–2 vety)",
-          "- **V akom stave to je** (link / repo / screenshot)",
-          "- **Koho hľadáš** (skills, nie tituly)",
-          "- **Koľko času** a **čo za to** (podiel/paid/barter/open-source)",
-          "",
-          "Ak vynecháš „čo za to“, tak najčastejšia odpoveď bude ticho.",
-        ].join("\n"),
-      is_seed: true,
-      seed_batch_id: SEED_BATCH_ID,
-      created_at: t,
-      updated_at: t,
-    },
-    {
-      id: uuid(),
-      author_id: AUTHOR_ID,
-      type: "product",
-      status: "open",
-      lang: "sk",
-      category: "projects",
-      tags: ["mvp", seedTag],
-      title: "Dopyt: FE dev na MVP (Next.js)",
-      context: "Ukážkový dopyt.",
-      prompt: null,
-      output:
-        [
-          "- Stack: Next.js, Tailwind",
-          "- Potrebujem: feed, detail príspevku, formy",
-          "- Čas: 5–10h týždenne, 2–3 týždne",
-          "",
-          "Ak máš chuť, pošli link na 1–2 veci čo si robil.",
-        ].join("\n"),
+      output: [
+        "🤝 Ľudia sa ozvú, keď chápu 3 veci: čo to je, čo treba spraviť, čo za to.",
+        "",
+        "Napíš:",
+        "- Čo staviaš (1–2 vety)",
+        "- Stav (link / repo / screenshot)",
+        "- Koho hľadáš (skills, nie tituly)",
+        "- Čas (koľko hodín/týždeň)",
+        "- Odmena (paid/podiel/barter/open-source)",
+        "",
+        "Keď vynecháš „čo za to“, najčastejšia odpoveď je ticho.",
+      ].join("
+"),
       is_seed: true,
       seed_batch_id: SEED_BATCH_ID,
       created_at: t,
       updated_at: t,
     },
 
-    // QA
+    // QA (pinned tutorial)
     {
       id: uuid(),
       author_id: AUTHOR_ID,
       type: "request",
       status: "open",
       lang: "sk",
-      category: "qa",
-      tags: ["faq", seedTag],
-      title: "FAQ: čo sem patria AI výstupy a čo nie",
+      category: CAT_QA,
+      tags: ["pinned", "tutorial", seedTag],
+      title: "Ako písať otázku tak, aby sa dala zodpovedať",
+      context: "Minimum informácií, aby odpoveď nebola len „pošli viac detailov“.",
+      prompt: null,
+      output: [
+        "❓ Minimum pre dobrú otázku:",
+        "",
+        "- Čo sa snažíš dosiahnuť (1 veta)",
+        "- Čo si spravil (konkrétne kroky)",
+        "- Čo sa stalo (error/log/screenshot)",
+        "- Čo si čakal, že sa stane",
+        "- Čo si už skúšal",
+        "",
+        "Bez toho ľudia nevedia pomôcť. A potom sa všetci tvária prekvapene. 🙂",
+      ].join("
+"),
+      is_seed: true,
+      seed_batch_id: SEED_BATCH_ID,
+      created_at: t,
+      updated_at: t,
+    },
+
+    // FAQ (still tutorial, pinned to keep it visible)
+    {
+      id: uuid(),
+      author_id: AUTHOR_ID,
+      type: "request",
+      status: "open",
+      lang: "sk",
+      category: CAT_QA,
+      tags: ["pinned", "tutorial", "faq", seedTag],
+      title: "FAQ: AI výstupy – čo sem dať a čo nie",
       context: "Rýchle pravidlá pre poriadok.",
       prompt: null,
-      output:
-        [
-          "Patrí sem:",
-          "- AI plán / návrh / kód keď chceš reality-check",
-          "- otázky s kontextom a logmi",
-          "",
-          "Nepatrí sem:",
-          "- „sprav mi všetko“ bez detailov",
-          "- „nefunguje mi to“ bez chyby/logu",
-        ].join("\n"),
+      output: [
+        "✅ Daj sem AI výstup, keď:",
+        "- chceš ho skrátiť/zlepšiť (text)",
+        "- chceš debug/review (kód)",
+        "- chceš otestovať logiku (plán)",
+        "",
+        "❌ Nedávaj sem AI výstup, keď:",
+        "- je to len „pozri čo mi to napísalo“",
+        "- nemáš jasné kritériá, čo má byť výsledok",
+      ].join("
+"),
       is_seed: true,
       seed_batch_id: SEED_BATCH_ID,
       created_at: t,
@@ -317,6 +341,7 @@ function seedPostsPayload(): PostInsert[] {
     },
   ];
 }
+
 
 function seedCommentsPayload(postIds: string[]): CommentInsert[] {
   const t = nowISO();
