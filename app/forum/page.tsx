@@ -91,54 +91,29 @@ export default async function ForumHome({
 
   const limit = sort === "helpful" || sort === "comments" || sort === "relevance" ? 200 : 50;
 
-  const applyFilters = (q0: any) => {
-    let q1 = q0;
-    if (category) q1 = q1.eq("category", category);
-    if (tag) q1 = q1.contains("tags", [tag]);
-    if (type) q1 = q1.eq("type", type);
-    if (lang) q1 = q1.eq("lang", lang);
+  let query = supabase
+    .from("posts")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
 
-    if (q) {
-      if (sort === "relevance") {
-        const like = `%${q}%`;
-        q1 = q1.or(`title.ilike.${like},context.ilike.${like},prompt.ilike.${like},output.ilike.${like}`);
-      } else {
-        q1 = q1.ilike("title", `%${q}%`);
-      }
+  if (category) query = query.eq("category", category);
+  if (tag) query = query.contains("tags", [tag]);
+  if (type) query = query.eq("type", type);
+  if (lang) query = query.eq("lang", lang);
+
+  if (q) {
+    if (sort === "relevance") {
+      const like = `%${q}%`;
+      query = query.or(`title.ilike.${like},context.ilike.${like},prompt.ilike.${like},output.ilike.${like}`);
+    } else {
+      query = query.ilike("title", `%${q}%`);
     }
-    return q1;
-  };
-
-  let error: any = null;
-  let posts: PostRow[] = [];
-
-  // Always try to keep pinned content visible (if it matches the current filters),
-  // even when it's older than the "newest" window.
-  if (tag === "pinned") {
-    const qAll = applyFilters(
-      supabase.from("posts").select("*").contains("tags", ["pinned"]).order("created_at", { ascending: false }).limit(limit)
-    );
-    const { data, error: err } = await qAll;
-    if (err) error = err;
-    posts = (data ?? []) as PostRow[];
-  } else {
-    const qPinned = applyFilters(
-      supabase.from("posts").select("*").contains("tags", ["pinned"]).order("created_at", { ascending: false }).limit(20)
-    );
-    const { data: pinnedData, error: pinnedErr } = await qPinned;
-    if (pinnedErr) error = pinnedErr;
-
-    const qRest = applyFilters(
-      supabase.from("posts").select("*").not("tags", "cs", "{pinned}").order("created_at", { ascending: false }).limit(limit)
-    );
-    const { data: restData, error: restErr } = await qRest;
-    if (restErr) error = restErr;
-
-    const merged = [...((pinnedData ?? []) as PostRow[]), ...((restData ?? []) as PostRow[])];
-    const uniq = new Map<string, PostRow>();
-    for (const p of merged) uniq.set(p.id, p);
-    posts = Array.from(uniq.values());
   }
+
+  const { data, error } = await query;
+
+  const posts = (data ?? []) as PostRow[];
 
   // Metrics (comments + helpful) for compact feed cards
   const postIds = posts.map((p) => p.id);
@@ -160,20 +135,6 @@ export default async function ForumHome({
   const { data: claimsData } = await supabase.auth.getClaims();
   const me = claimsData?.claims;
   const myHelpful = new Set<string>();
-
-  // Role (UI gating)
-  let meRole: any = "user";
-  let isMod = false;
-  if (me?.sub) {
-    const { data: meProfile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", me.sub)
-      .maybeSingle();
-    meRole = (meProfile as any)?.role ?? "user";
-    isMod = meRole === "admin" || meRole === "moderator";
-  }
-
 
   if (me?.sub && postIds.length) {
     const { data: myReactions } = await supabase
@@ -200,51 +161,30 @@ export default async function ForumHome({
   });
 
   // Sorting (server-side in JS based on metrics / relevance)
-  const isPinned = (p: any) => Array.isArray(p?.tags) && p.tags.includes("pinned");
-
-  let sorted = [...postsWithMetrics].sort((a: any, b: any) => {
-    const ap = isPinned(a);
-    const bp = isPinned(b);
-    if (ap !== bp) return ap ? -1 : 1;
-    // default: newest first
-    return String(b.created_at).localeCompare(String(a.created_at));
-  });
+  let sorted = postsWithMetrics;
 
   if (sort === "helpful") {
     sorted = [...postsWithMetrics].sort((a: any, b: any) => {
-      const ap = isPinned(a);
-      const bp = isPinned(b);
-      if (ap !== bp) return ap ? -1 : 1;
-
       const diff = (b.helpful_count ?? 0) - (a.helpful_count ?? 0);
       if (diff !== 0) return diff;
       return String(b.created_at).localeCompare(String(a.created_at));
     });
   } else if (sort === "comments") {
     sorted = [...postsWithMetrics].sort((a: any, b: any) => {
-      const ap = isPinned(a);
-      const bp = isPinned(b);
-      if (ap !== bp) return ap ? -1 : 1;
-
       const diff = (b.comment_count ?? 0) - (a.comment_count ?? 0);
       if (diff !== 0) return diff;
       return String(b.created_at).localeCompare(String(a.created_at));
     });
   } else if (sort === "relevance") {
     sorted = [...postsWithMetrics].sort((a: any, b: any) => {
-      const ap = isPinned(a);
-      const bp = isPinned(b);
-      if (ap !== bp) return ap ? -1 : 1;
-
       const diff = scoreRelevance(b, q, tag) - scoreRelevance(a, q, tag);
       if (diff !== 0) return diff;
       return String(b.created_at).localeCompare(String(a.created_at));
     });
   }
+
   // keep the UI manageable
   const shown = sorted.slice(0, 50);
-
-  const tutorialSlugs = new Set(["how-to", "projects", "qa"]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -331,7 +271,6 @@ export default async function ForumHome({
                       {c.name}
                     </Link>
 
-                    {!tutorialSlugs.has(c.slug) || isMod ? (
                     <Link
                       href={{
                         pathname: "/forum/new",
@@ -347,15 +286,6 @@ export default async function ForumHome({
                     >
                       +
                     </Link>
-                  ) : (
-                    <div
-                      className="mx-1 inline-flex h-7 w-7 items-center justify-center rounded-md border border-foreground/10 text-xs text-foreground/40"
-                      title="Len moderátor môže pridávať do tejto kategórie"
-                      aria-label="Uzamknuté"
-                    >
-                      🔒
-                    </div>
-                  )}
                   </div>
                 ))}
               </div>
