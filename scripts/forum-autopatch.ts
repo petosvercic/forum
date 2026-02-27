@@ -1,5 +1,4 @@
-﻿#!/usr/bin/env node
-/* eslint-disable no-console */
+﻿/* eslint-disable no-console */
 
 /**
  * VIORA Forum autopatch (seed welcome obsah)
@@ -406,3 +405,4 @@ async function main() {
 }
 
 main().catch((e) => die(String((e as any)?.message ?? e)));
+
