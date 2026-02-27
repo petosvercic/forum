@@ -30,6 +30,9 @@ export default function ForumLayout({
               <Link href="/forum/people" className="hover:text-foreground">
                 Ľudia
               </Link>
+              <Link href="/welcome" className="hover:text-foreground">
+                O čo ide
+              </Link>
             </nav>
           </div>
 

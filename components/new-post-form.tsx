@@ -14,6 +14,13 @@ import type { PostLang, PostType } from "@/lib/forum/types";
 const MAX_IMAGES = 5;
 const MAX_IMAGE_MB = 10;
 
+const MAX_MEDIA = 3;
+const MAX_MEDIA_MB = 60; // keep it sane for v1
+
+function isMediaFile(f: File) {
+  return f.type.startsWith("video/") || f.type.startsWith("audio/");
+}
+
 export function NewPostForm({
   userId,
   categories,
@@ -28,20 +35,15 @@ export function NewPostForm({
   const [category, setCategory] = useState<string>(categoryOptions[0] || "Meta");
   const [title, setTitle] = useState("");
   const [tagsText, setTagsText] = useState("");
-  const [isProject, setIsProject] = useState(false);
   const [context, setContext] = useState("");
   const [prompt, setPrompt] = useState("");
   const [output, setOutput] = useState("");
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const tags = useMemo(() => {
-    const base = normalizeTags(tagsText);
-    if (isProject && !base.includes("project")) return ["project", ...base].slice(0, 12);
-    if (!isProject) return base.filter((t) => t !== "project");
-    return base;
-  }, [tagsText, isProject]);
+  const tags = useMemo(() => normalizeTags(tagsText), [tagsText]);
 
   const onPickImages = (files: FileList | null) => {
     const picked = Array.from(files ?? []).slice(0, MAX_IMAGES);
@@ -52,8 +54,19 @@ export function NewPostForm({
       return;
     }
 
-    setError(null);
     setImageFiles(picked);
+  };
+
+  const onPickMedia = (files: FileList | null) => {
+    const picked = Array.from(files ?? []).filter(isMediaFile).slice(0, MAX_MEDIA);
+
+    const tooBig = picked.find((f) => f.size > MAX_MEDIA_MB * 1024 * 1024);
+    if (tooBig) {
+      setError(`Súbor "${tooBig.name}" je príliš veľký. Max ${MAX_MEDIA_MB} MB.`);
+      return;
+    }
+
+    setMediaFiles(picked);
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -83,12 +96,7 @@ export function NewPostForm({
         output: output.trim() ? output.trim() : null,
       };
 
-      const { data, error } = await supabase
-        .from("posts")
-        .insert(payload)
-        .select("id")
-        .single();
-
+      const { data, error } = await supabase.from("posts").insert(payload).select("id").single();
       if (error) throw error;
       if (!data?.id) throw new Error("Neočakávaná odpoveď z databázy");
 
@@ -105,8 +113,7 @@ export function NewPostForm({
             const fileName = `${crypto.randomUUID()}.${ext}`;
             const path = `${userId}/${postId}/${fileName}`;
 
-            const { error: upErr } = await supabase
-              .storage
+            const { error: upErr } = await supabase.storage
               .from("post-images")
               .upload(path, file, { upsert: false, cacheControl: "3600" });
 
@@ -117,11 +124,7 @@ export function NewPostForm({
           }
 
           if (urls.length) {
-            const { error: updErr } = await supabase
-              .from("posts")
-              .update({ image_urls: urls })
-              .eq("id", postId);
-
+            const { error: updErr } = await supabase.from("posts").update({ image_urls: urls }).eq("id", postId);
             if (updErr) throw updErr;
           }
         } catch {
@@ -129,7 +132,49 @@ export function NewPostForm({
         }
       }
 
-      router.push(imagesFailed ? `/forum/p/${postId}?img=failed` : `/forum/p/${postId}`);
+      // 3) Upload media (optional)
+      let mediaFailed = false;
+      if (mediaFiles.length) {
+        try {
+          for (const file of mediaFiles) {
+            const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+            const fileName = `${crypto.randomUUID()}.${ext}`;
+            const path = `${userId}/${postId}/${fileName}`;
+
+            const { error: upErr } = await supabase.storage
+              .from("post-media")
+              .upload(path, file, { upsert: false, cacheControl: "3600" });
+
+            if (upErr) throw upErr;
+
+            const { data: pub } = supabase.storage.from("post-media").getPublicUrl(path);
+            const publicUrl = pub?.publicUrl;
+            if (!publicUrl) throw new Error("Nepodarilo sa získať URL pre upload");
+
+            const media_type = file.type.startsWith("video/") ? "video" : "audio";
+
+            const { error: insErr } = await supabase.from("post_media").insert({
+              post_id: postId,
+              uploader_id: userId,
+              url: publicUrl,
+              mime_type: file.type || null,
+              media_type,
+              original_name: file.name,
+              size_bytes: file.size,
+            });
+
+            if (insErr) throw insErr;
+          }
+        } catch {
+          mediaFailed = true;
+        }
+      }
+
+      const qp = new URLSearchParams();
+      if (imagesFailed) qp.set("img", "failed");
+      if (mediaFailed) qp.set("media", "failed");
+
+      router.push(qp.toString() ? `/forum/p/${postId}?${qp.toString()}` : `/forum/p/${postId}`);
       router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Nastala chyba");
@@ -204,14 +249,6 @@ export function NewPostForm({
 
           <div className="flex flex-col gap-1">
             <Label htmlFor="tags">Tagy</Label>
-            <label className="mt-1 flex items-center gap-2 text-xs text-foreground/70">
-              <input
-                type="checkbox"
-                checked={isProject}
-                onChange={(e) => setIsProject(e.target.checked)}
-              />
-              Toto je projekt (zobrazí sa v portfóliu)
-            </label>
             <Input
               id="tags"
               value={tagsText}
@@ -220,9 +257,7 @@ export function NewPostForm({
             />
             <div className="text-xs text-foreground/60">
               Rozdeľ čiarkou. Uloží sa max 12 tagov.{" "}
-              {tags.length ? (
-                <span className="ml-2">Preview: {tags.map((t) => `#${t}`).join(" ")}</span>
-              ) : null}
+              {tags.length ? <span className="ml-2">Preview: {tags.map((t) => `#${t}`).join(" ")}</span> : null}
             </div>
           </div>
 
@@ -262,29 +297,44 @@ export function NewPostForm({
             </>
           ) : (
             <div className="flex flex-col gap-1">
-              <Label htmlFor="output">Čo už máš (voliteľné)</Label>
+              <Label htmlFor="output">Obsah</Label>
               <textarea
                 id="output"
                 value={output}
                 onChange={(e) => setOutput(e.target.value)}
-                placeholder="AI návrh, logy, kód, poznámky…"
+                placeholder="Popíš čo chceš riešiť / čo už máš / výstup…"
                 className="min-h-32 w-full rounded-md border border-foreground/10 bg-transparent p-3 text-sm"
               />
             </div>
           )}
 
-          <div className="flex flex-col gap-1">
-            <Label>Obrázky (voliteľné)</Label>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(e) => onPickImages(e.target.files)}
-              className="block text-sm"
-            />
-            <div className="text-xs text-foreground/60">
-              Max {MAX_IMAGES} obrázkov, každý do {MAX_IMAGE_MB} MB. (Ukladá sa do Supabase Storage bucketu <span className="font-mono">post-images</span>.)
-              {imageFiles.length ? <span className="ml-2">Vybrané: {imageFiles.length}</span> : null}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <Label>Obrázky (voliteľné)</Label>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => onPickImages(e.target.files)}
+                className="text-sm"
+              />
+              <div className="text-xs text-foreground/60">
+                Max {MAX_IMAGES} súborov, {MAX_IMAGE_MB} MB/ks.
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label>Video / Audio (voliteľné)</Label>
+              <input
+                type="file"
+                accept="video/*,audio/*"
+                multiple
+                onChange={(e) => onPickMedia(e.target.files)}
+                className="text-sm"
+              />
+              <div className="text-xs text-foreground/60">
+                Max {MAX_MEDIA} súborov, {MAX_MEDIA_MB} MB/ks. (v1)
+              </div>
             </div>
           </div>
 
@@ -301,6 +351,11 @@ export function NewPostForm({
 
           <p className="text-xs text-foreground/60">
             Poznámka: ak riešiš elektro / zdravie / bezpečnosť, dopíš jasné upozornenie. AI môže trepať.
+          </p>
+
+          <p className="text-xs text-foreground/60">
+            Ak upload videa/audio zlyhá: vytvor bucket <span className="font-mono">post-media</span> v Supabase Storage a povoľ
+            <span className="font-mono"> SELECT (public)</span> + <span className="font-mono"> INSERT (authenticated)</span>.
           </p>
         </form>
       </CardContent>

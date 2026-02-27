@@ -7,6 +7,8 @@ import { DeleteCommentButton, DeletePostButton } from "@/components/moderation-b
 import { HelpfulButton } from "@/components/helpful-button";
 import { ReportButton } from "@/components/report-button";
 import { HideToggleButton } from "@/components/hide-toggle";
+import { ShareButton } from "@/components/share-button";
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import type { CommentRow, PostRow } from "@/lib/forum/types";
 import { formatDateTime, shortId } from "@/lib/forum/format";
@@ -16,11 +18,12 @@ export default async function PostPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ img?: string }>;
+  searchParams?: Promise<{ img?: string; media?: string }>;
 }) {
   const { id } = await params;
   const sp = searchParams ? await searchParams : {};
   const imagesFailed = sp.img === "failed";
+  const mediaFailed = sp.media === "failed";
   const supabase = await createClient();
 
   const { data: post, error: postError } = await supabase
@@ -32,9 +35,7 @@ export default async function PostPage({
   if (postError) {
     return (
       <div className="p-6 rounded-lg border border-red-500/30 bg-red-500/5">
-        <p className="text-sm text-red-500">
-          Príspevok sa nepodarilo načítať: {postError.message}
-        </p>
+        <p className="text-sm text-red-500">Príspevok sa nepodarilo načítať: {postError.message}</p>
         <div className="mt-3">
           <Link href="/forum" className="text-sm underline">
             Späť na feed
@@ -57,7 +58,7 @@ export default async function PostPage({
   const { data: claimsData } = await supabase.auth.getClaims();
   const user = claimsData?.claims;
 
-  // role lookup (optional, requires DB migration adding profiles.role)
+  // role lookup (optional, requires profiles.role)
   let role: string | null = null;
   if (user?.sub) {
     const { data: meProfile } = await supabase
@@ -69,6 +70,7 @@ export default async function PostPage({
   }
 
   const isMod = role === "moderator" || role === "admin";
+  const isAdmin = role === "admin";
   const canDeletePost = isMod || (!!user?.sub && user.sub === typedPost.author_id);
 
   // Helpful metrics
@@ -124,40 +126,53 @@ export default async function PostPage({
     }
   }
 
+  // Media for this post
+  const { data: mediaRows } = await supabase
+    .from("post_media")
+    .select("*")
+    .eq("post_id", id)
+    .order("created_at", { ascending: true });
+
+  const media = (mediaRows ?? []) as any[];
+
   return (
     <div className="flex flex-col gap-5">
       {imagesFailed ? (
         <div className="p-4 rounded-lg border border-amber-500/30 bg-amber-500/10 text-sm">
-          Príspevok sa uložil, ale obrázky sa nepodarilo pridať. Skontroluj, že máš v Supabase vytvorený Storage bucket <span className="font-mono">post-images</span> a spustenú migráciu v <span className="font-mono">supabase/VIORA_MIGRATION.sql</span>.
+          Niektoré obrázky sa nepodarilo nahrať. Skontroluj bucket <span className="font-mono">post-images</span> a policies.
         </div>
       ) : null}
+
+      {mediaFailed ? (
+        <div className="p-4 rounded-lg border border-amber-500/30 bg-amber-500/10 text-sm">
+          Video/Audio sa nepodarilo nahrať. Skontroluj bucket <span className="font-mono">post-media</span> a policies (INSERT pre authenticated).
+        </div>
+      ) : null}
+
       <div className="flex items-center justify-between gap-3">
         <Link href="/forum" className="text-sm text-foreground/70 hover:underline">
           ← späť
         </Link>
-        <div className="text-xs text-foreground/60">
-          Autor: {shortId(typedPost.author_id)}
+        <div className="flex items-center gap-2">
+          <ShareButton path={`/forum/p/${id}`} title={typedPost.title} label="Zdieľať" />
         </div>
       </div>
 
       <Card>
         <CardHeader className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge
-              variant={typedPost.type === "request" ? "default" : "secondary"}
-            >
-              {typedPost.type === "request" ? "Dopyt" : (typedPost.type === "product" ? "Produkt" : "AI výstup")}
+            <Badge variant={typedPost.type === "request" ? "default" : "secondary"}>
+              {typedPost.type === "request" ? "Dopyt" : typedPost.type === "product" ? "Produkt" : "AI výstup"}
             </Badge>
             <Badge variant="outline">{typedPost.category}</Badge>
             <Badge variant="outline">{typedPost.lang.toUpperCase()}</Badge>
             {typedPost.is_hidden ? <Badge variant="destructive">Skryté</Badge> : null}
-            <span className="text-xs text-foreground/60 ml-auto">
-              {formatDateTime(typedPost.created_at)}
-            </span>
+            <span className="text-xs text-foreground/60 ml-auto">{formatDateTime(typedPost.created_at)}</span>
           </div>
-          <h1 className="text-2xl font-bold leading-snug">{typedPost.title}</h1>
 
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-2xl font-bold leading-snug">{typedPost.title}</h1>
+
             <div className="flex items-center gap-2">
               <HelpfulButton
                 targetType="post"
@@ -165,18 +180,11 @@ export default async function PostPage({
                 initialCount={postHelpfulCount}
                 initialActive={myPostHelpful}
               />
-              {user?.sub ? <ReportButton targetType="post" targetId={id} /> : null}
+              <ReportButton targetType="post" targetId={id} />
+              {isMod ? <HideToggleButton table="posts" id={id} isHidden={!!typedPost.is_hidden} size="sm" /> : null}
+              {canDeletePost ? <DeletePostButton postId={id} /> : null}
             </div>
-            {isMod ? (
-              <HideToggleButton table="posts" id={id} isHidden={!!typedPost.is_hidden} />
-            ) : null}
           </div>
-
-          {canDeletePost ? (
-            <div className="flex justify-end">
-              <DeletePostButton postId={id} />
-            </div>
-          ) : null}
 
           {typedPost.tags?.length ? (
             <div className="flex flex-wrap gap-1.5">
@@ -191,32 +199,11 @@ export default async function PostPage({
               ))}
             </div>
           ) : null}
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {typedPost.image_urls?.length ? (
-            <div>
-              <h2 className="text-sm font-semibold mb-2">Obrázky</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {typedPost.image_urls.map((url) => (
-                  <a
-                    key={url}
-                    href={url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block"
-                  >
-                    <img
-                      src={url}
-                      alt=""
-                      loading="lazy"
-                      className="w-full max-h-80 object-contain rounded-md border border-foreground/10 bg-background"
-                    />
-                  </a>
-                ))}
-              </div>
-            </div>
-          ) : null}
 
+          <div className="text-xs text-foreground/60">Autor: {shortId(typedPost.author_id)}</div>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
           {typedPost.context ? (
             <div>
               <h2 className="text-sm font-semibold mb-1">Kontext</h2>
@@ -235,10 +222,61 @@ export default async function PostPage({
 
           {typedPost.output ? (
             <div>
-              <h2 className="text-sm font-semibold mb-1">Výstup</h2>
+              <h2 className="text-sm font-semibold mb-1">Obsah</h2>
               <pre className="text-xs whitespace-pre-wrap rounded-md border border-foreground/10 p-3 overflow-auto">
                 {typedPost.output}
               </pre>
+            </div>
+          ) : null}
+
+          {typedPost.image_urls?.length ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {typedPost.image_urls.map((u) => (
+                <a key={u} href={u} target="_blank" rel="noreferrer">
+                  <img src={u} alt="" className="w-full h-32 object-cover rounded-md border border-foreground/10" />
+                </a>
+              ))}
+            </div>
+          ) : null}
+
+          {media.length ? (
+            <div className="space-y-3">
+              <h2 className="text-sm font-semibold">Media</h2>
+              <div className="flex flex-col gap-3">
+                {media.map((m) => (
+                  <div key={m.id} className="rounded-md border border-foreground/10 p-3">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="text-xs text-foreground/60 truncate">
+                        {m.original_name ?? m.url}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isAdmin ? (
+                          <Button asChild size="sm" variant="outline">
+                            <a href={m.url} download target="_blank" rel="noreferrer">
+                              Stiahnuť
+                            </a>
+                          </Button>
+                        ) : null}
+                        <Button asChild size="sm" variant="outline">
+                          <a href={m.url} target="_blank" rel="noreferrer">
+                            Otvoriť
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+
+                    {String(m.media_type) === "video" ? (
+                      <video controls preload="metadata" className="w-full rounded-md">
+                        <source src={m.url} type={m.mime_type ?? "video/mp4"} />
+                      </video>
+                    ) : (
+                      <audio controls preload="metadata" className="w-full">
+                        <source src={m.url} type={m.mime_type ?? "audio/mpeg"} />
+                      </audio>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           ) : null}
         </CardContent>
@@ -257,10 +295,7 @@ export default async function PostPage({
         ) : (
           <div className="p-4 rounded-lg border border-foreground/10 text-sm">
             Pre pridanie komentára sa prihlás.
-            <Link
-              href={`/auth/login?next=${encodeURIComponent(`/forum/p/${id}`)}`}
-              className="ml-2 underline"
-            >
+            <Link href={`/auth/login?next=${encodeURIComponent(`/forum/p/${id}`)}`} className="ml-2 underline">
               Prihlásiť sa
             </Link>
           </div>
@@ -272,38 +307,46 @@ export default async function PostPage({
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {comments.map((c) => (
-              <Card key={c.id}>
-                <CardHeader className="py-3">
-                  <div className="flex items-center justify-between gap-3 text-xs text-foreground/60">
-                    <span>Autor: {shortId(c.author_id)}</span>
-                    <div className="flex items-center gap-2">
+            {comments.map((c) => {
+              const canDeleteComment = isMod || (!!user?.sub && user.sub === c.author_id);
+              const cHelpful = commentHelpful.get(c.id) ?? 0;
+              const myActive = myCommentHelpful.has(c.id);
+
+              return (
+                <Card key={c.id}>
+                  <CardHeader className="py-3">
+                    <div className="flex items-center justify-between text-xs text-foreground/60">
+                      <span>Autor: {shortId(c.author_id)}</span>
                       <span>{formatDateTime(c.created_at)}</span>
-                      {c.is_hidden ? <span className="text-amber-600">Skryté</span> : null}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0 pb-4 space-y-3">
+                    {c.is_hidden ? (
+                      <div className="text-sm text-foreground/60 italic">
+                        Tento komentár je skrytý.
+                      </div>
+                    ) : (
+                      <p className="text-sm whitespace-pre-wrap">{c.body}</p>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-2">
                       <HelpfulButton
                         targetType="comment"
                         targetId={c.id}
-                        initialCount={commentHelpful.get(c.id) ?? 0}
-                        initialActive={myCommentHelpful.has(c.id)}
+                        initialCount={cHelpful}
+                        initialActive={myActive}
                         size="sm"
                       />
-                      {user?.sub ? (
-                        <ReportButton targetType="comment" targetId={c.id} size="sm" />
-                      ) : null}
+                      <ReportButton targetType="comment" targetId={c.id} size="sm" />
                       {isMod ? (
                         <HideToggleButton table="comments" id={c.id} isHidden={!!c.is_hidden} size="sm" />
                       ) : null}
-                      {(isMod || (!!user?.sub && user.sub === c.author_id)) ? (
-                        <DeleteCommentButton commentId={c.id} />
-                      ) : null}
+                      {canDeleteComment ? <DeleteCommentButton commentId={c.id} /> : null}
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0 pb-4">
-                  <p className="text-sm whitespace-pre-wrap">{c.body}</p>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>

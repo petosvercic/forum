@@ -50,6 +50,19 @@ export type ReactionRow = {
   created_at: string;
 };
 
+
+export type PostMediaRow = {
+  id: string;
+  post_id: string;
+  uploader_id: string;
+  url: string;
+  mime_type: string | null;
+  media_type: "video" | "audio";
+  original_name: string | null;
+  size_bytes: number | null;
+  created_at: string;
+};
+
 export type ReportRow = {
   id: string;
   target_type: ReactionTargetType;
