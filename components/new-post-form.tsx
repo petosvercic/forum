@@ -55,6 +55,56 @@ export function NewPostForm({
 
   const tags = useMemo(() => normalizeTags(tagsText), [tagsText]);
 
+  const template = useMemo(() => {
+    if (type === "product") {
+      return {
+        title: "Projekt (🧩)",
+        body: [
+          "1) Čo staviaš (1–2 vety):",
+          "2) Pre koho / aký problém:",
+          "3) Stav dnes (link / screenshot / repo):",
+          "4) Čo konkrétne potrebuješ (skills + čas):",
+          "5) Čo za to (paid/podiel/barter/open-source):",
+          "6) Časový rámec:",
+        ].join("\n"),
+      };
+    }
+    if (type === "request") {
+      return {
+        title: "Dopyt/Ponuka (🤝)",
+        body: [
+          "1) Cieľ (1 veta):",
+          "2) Kontext (čo už máš, čo si skúšal):",
+          "3) Problém / otázka (čo presne chceš vyriešiť):",
+          "4) Obmedzenia (čas, budget, tech):",
+          "5) Kritériá úspechu:",
+        ].join("\n"),
+      };
+    }
+    // ai_output
+    return {
+      title: "AI výstup (🧠)",
+      body: [
+        "1) Cieľ (1 veta):",
+        "2) Kontext (čo riešiš, prečo):",
+        "3) Prompt (ak ho chceš zdieľať):",
+        "4) AI výstup (sem vlož odpoveď/kód):",
+        "5) Čo presne chceš od ľudí (review/debug/skrátiť/overiť):",
+      ].join("\n"),
+    };
+  }, [type]);
+
+  const applyTemplate = () => {
+    // Nech to neprepisuje obsah, keď už niečo máš.
+    if (type === "ai_output") {
+      if (!context.trim()) setContext(template.body);
+      if (!prompt.trim()) setPrompt("Sem vlož prompt…");
+      if (!output.trim()) setOutput("Sem vlož AI výstup…");
+    } else {
+      if (!output.trim()) setOutput(template.body);
+    }
+  };
+
   const onPickImages = (files: FileList | null) => {
     const picked = Array.from(files ?? []).slice(0, MAX_IMAGES);
 
@@ -181,6 +231,7 @@ export function NewPostForm({
       }
 
       const qp = new URLSearchParams();
+      qp.set("created", "1");
       if (imagesFailed) qp.set("img", "failed");
       if (mediaFailed) qp.set("media", "failed");
 
@@ -268,6 +319,21 @@ export function NewPostForm({
             <div className="text-xs text-foreground/60">
               Rozdeľ čiarkou. Uloží sa max 12 tagov.{" "}
               {tags.length ? <span className="ml-2">Preview: {tags.map((t) => `#${t}`).join(" ")}</span> : null}
+            </div>
+          </div>
+
+
+          <div className="rounded-md border border-foreground/10 bg-foreground/[0.02] p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold">Šablóna (odporúčané)</div>
+                <div className="text-xs text-foreground/70">
+                  {template.title} • Vyplň body, nech ľudia nemusia hádať, čo chceš.
+                </div>
+              </div>
+              <Button type="button" size="sm" variant="outline" onClick={applyTemplate}>
+                Vložiť šablónu
+              </Button>
             </div>
           </div>
 

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PostCard } from "@/components/post-card";
 import { ShareButton } from "@/components/share-button";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { CATEGORIES, POST_LANGS, POST_TYPES } from "@/lib/forum/constants";
 import { slugifyCategory } from "@/lib/forum/categories";
@@ -46,11 +47,38 @@ function scoreRelevance(p: any, q: string, tag: string) {
   s += Number(p.helpful_count ?? 0) * 2;
   s += Number(p.comment_count ?? 0) * 1;
 
-  // Gentle recency boost (so the feed doesn't become fossilized)
+  // Gentle recency boost
   const t = new Date(String(p.created_at ?? "")).getTime();
   if (!Number.isNaN(t)) s += Math.min(20, (Date.now() - t) / (1000 * 60 * 60 * 24) * -0.2 + 20);
 
   return s;
+}
+
+function applyFilters(
+  query: any,
+  {
+    category,
+    tag,
+    type,
+    lang,
+    q,
+    sort,
+  }: { category: string; tag: string; type: string; lang: string; q: string; sort: string }
+) {
+  if (category) query = query.eq("category", category);
+  if (tag) query = query.contains("tags", [tag]);
+  if (type) query = query.eq("type", type);
+  if (lang) query = query.eq("lang", lang);
+
+  if (q) {
+    if (sort === "relevance") {
+      const like = `%${q}%`;
+      query = query.or(`title.ilike.${like},context.ilike.${like},prompt.ilike.${like},output.ilike.${like}`);
+    } else {
+      query = query.ilike("title", `%${q}%`);
+    }
+  }
+  return query;
 }
 
 export default async function ForumHome({
@@ -88,37 +116,64 @@ export default async function ForumHome({
   }
 
   const selectedCat = category ? categories.find((c) => c.name === category) : null;
+  const tutorialSlugs = new Set(["how-to", "projects", "qa"]);
+  const selectedSlug = selectedCat?.slug ?? "";
 
+  // Auth / role (for UI gating)
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const me = claimsData?.claims;
+  let role: string | null = null;
+  if (me?.sub) {
+    const { data: meProfile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", me.sub)
+      .maybeSingle();
+    role = (meProfile as any)?.role ?? null;
+  }
+  const isMod = role === "moderator" || role === "admin";
+
+  // Base queries
   const limit = sort === "helpful" || sort === "comments" || sort === "relevance" ? 200 : 50;
 
-  let query = supabase
+  let pinnedQuery = supabase
     .from("posts")
     .select("*")
+    .contains("tags", ["pinned"])
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .limit(30);
 
-  if (category) query = query.eq("category", category);
-  if (tag) query = query.contains("tags", [tag]);
-  if (type) query = query.eq("type", type);
-  if (lang) query = query.eq("lang", lang);
+  pinnedQuery = applyFilters(pinnedQuery, { category, tag, type, lang, q, sort });
 
-  if (q) {
-    if (sort === "relevance") {
-      const like = `%${q}%`;
-      query = query.or(`title.ilike.${like},context.ilike.${like},prompt.ilike.${like},output.ilike.${like}`);
-    } else {
-      query = query.ilike("title", `%${q}%`);
+  let mainQuery = supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(limit);
+  mainQuery = applyFilters(mainQuery, { category, tag, type, lang, q, sort });
+
+  const [{ data: pinnedData, error: pinnedError }, { data, error }] = await Promise.all([pinnedQuery, mainQuery]);
+
+  const pinnedPosts = ((pinnedData ?? []) as PostRow[]).map((p) => ({ ...p })) as any[];
+  const mainPosts = (data ?? []) as PostRow[];
+
+  // Combine pinned-first + dedupe
+  const seen = new Set<string>();
+  const combined: PostRow[] = [];
+  for (const p of pinnedPosts) {
+    if (p?.id && !seen.has(p.id)) {
+      combined.push(p);
+      seen.add(p.id);
+    }
+  }
+  for (const p of mainPosts) {
+    if (p?.id && !seen.has(p.id)) {
+      combined.push(p);
+      seen.add(p.id);
     }
   }
 
-  const { data, error } = await query;
-
-  const posts = (data ?? []) as PostRow[];
+  const posts = combined;
+  const postIds = posts.map((p) => p.id);
 
   // Metrics (comments + helpful) for compact feed cards
-  const postIds = posts.map((p) => p.id);
   const metricsMap = new Map<string, { comment_count: number; helpful_count: number }>();
-
   if (postIds.length) {
     const { data: metrics, error: metricsError } = await supabase.rpc("get_post_metrics", { p_post_ids: postIds });
     if (!metricsError && Array.isArray(metrics)) {
@@ -131,11 +186,8 @@ export default async function ForumHome({
     }
   }
 
-  // My helpful reactions (so the button can render active state)
-  const { data: claimsData } = await supabase.auth.getClaims();
-  const me = claimsData?.claims;
+  // My helpful reactions
   const myHelpful = new Set<string>();
-
   if (me?.sub && postIds.length) {
     const { data: myReactions } = await supabase
       .from("reactions")
@@ -160,40 +212,46 @@ export default async function ForumHome({
     } as any;
   });
 
-  // Sorting (server-side in JS based on metrics / relevance)
-  let sorted = postsWithMetrics;
+  // Split pinned vs normal for sorting (pinned stays on top)
+  const pinnedSet = new Set((pinnedPosts ?? []).map((p: any) => p.id));
+  const pinned = postsWithMetrics.filter((p: any) => pinnedSet.has(p.id));
+  const normal = postsWithMetrics.filter((p: any) => !pinnedSet.has(p.id));
+
+  let normalSorted = normal;
 
   if (sort === "helpful") {
-    sorted = [...postsWithMetrics].sort((a: any, b: any) => {
+    normalSorted = [...normal].sort((a: any, b: any) => {
       const diff = (b.helpful_count ?? 0) - (a.helpful_count ?? 0);
       if (diff !== 0) return diff;
       return String(b.created_at).localeCompare(String(a.created_at));
     });
   } else if (sort === "comments") {
-    sorted = [...postsWithMetrics].sort((a: any, b: any) => {
+    normalSorted = [...normal].sort((a: any, b: any) => {
       const diff = (b.comment_count ?? 0) - (a.comment_count ?? 0);
       if (diff !== 0) return diff;
       return String(b.created_at).localeCompare(String(a.created_at));
     });
   } else if (sort === "relevance") {
-    sorted = [...postsWithMetrics].sort((a: any, b: any) => {
+    normalSorted = [...normal].sort((a: any, b: any) => {
       const diff = scoreRelevance(b, q, tag) - scoreRelevance(a, q, tag);
       if (diff !== 0) return diff;
       return String(b.created_at).localeCompare(String(a.created_at));
     });
   }
 
-  // keep the UI manageable
+  const sorted = [...pinned, ...normalSorted];
   const shown = sorted.slice(0, 50);
+
+  const isCleanView = !category && !tag && !type && !lang && !q;
+
+  const newPostLabel = category ? `+ Pridať do ${category}` : "+ Nový príspevok";
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Feed</h1>
-          <p className="text-sm text-foreground/70">
-            Zdieľaj AI výstupy, pýtaj sa, diskutuj, overuj.
-          </p>
+          <p className="text-sm text-foreground/70">Zdieľaj AI výstupy, pýtaj sa, diskutuj, overuj.</p>
         </div>
 
         <Button asChild>
@@ -207,7 +265,7 @@ export default async function ForumHome({
               },
             }}
           >
-            + Nový príspevok
+            {newPostLabel}
           </Link>
         </Button>
       </div>
@@ -250,44 +308,57 @@ export default async function ForumHome({
                   <span>Všetko</span>
                 </Link>
 
-                {categories.map((c) => (
-                  <div key={c.slug} className="group flex items-center justify-between rounded-md hover:bg-foreground/5">
-                    <Link
-                      href={{
-                        pathname: "/forum",
-                        query: {
-                          ...(q ? { q } : {}),
-                          ...(tag ? { tag } : {}),
-                          ...(type ? { type } : {}),
-                          ...(lang ? { lang } : {}),
-                          ...(sort ? { sort } : {}),
-                          category: c.name,
-                        },
-                      }}
-                      className={`flex-1 px-2 py-1.5 text-sm ${
-                        category === c.name ? "bg-foreground/5 rounded-md" : ""
-                      }`}
-                    >
-                      {c.name}
-                    </Link>
+                {categories.map((c) => {
+                  const isTutorial = tutorialSlugs.has(c.slug);
+                  return (
+                    <div key={c.slug} className="group flex items-center justify-between rounded-md hover:bg-foreground/5">
+                      <Link
+                        href={{
+                          pathname: "/forum",
+                          query: {
+                            ...(q ? { q } : {}),
+                            ...(tag ? { tag } : {}),
+                            ...(type ? { type } : {}),
+                            ...(lang ? { lang } : {}),
+                            ...(sort ? { sort } : {}),
+                            category: c.name,
+                          },
+                        }}
+                        className={`flex-1 px-2 py-1.5 text-sm ${
+                          category === c.name ? "bg-foreground/5 rounded-md" : ""
+                        }`}
+                      >
+                        {c.name}
+                      </Link>
 
-                    <Link
-                      href={{
-                        pathname: "/forum/new",
-                        query: {
-                          category: c.name,
-                          type: type || "ai_output",
-                          lang: lang || "sk",
-                        },
-                      }}
-                      className="mx-1 inline-flex h-7 w-7 items-center justify-center rounded-md border border-foreground/10 text-xs text-foreground/70 hover:border-foreground/30 hover:bg-foreground/5"
-                      title={`Nový príspevok do: ${c.name}`}
-                      aria-label={`Nový príspevok do: ${c.name}`}
-                    >
-                      +
-                    </Link>
-                  </div>
-                ))}
+                      {isTutorial && !isMod ? (
+                        <span
+                          className="mx-1 inline-flex h-7 w-7 items-center justify-center rounded-md border border-foreground/10 text-xs text-foreground/50"
+                          title="Len admin/mod môže pridávať do tutorial kategórií"
+                          aria-label="Zamknuté"
+                        >
+                          🔒
+                        </span>
+                      ) : (
+                        <Link
+                          href={{
+                            pathname: "/forum/new",
+                            query: {
+                              category: c.name,
+                              type: type || "ai_output",
+                              lang: lang || "sk",
+                            },
+                          }}
+                          className="mx-1 inline-flex h-7 w-7 items-center justify-center rounded-md border border-foreground/10 text-xs text-foreground/70 hover:border-foreground/30 hover:bg-foreground/5"
+                          title={`Nový príspevok do: ${c.name}`}
+                          aria-label={`Nový príspevok do: ${c.name}`}
+                        >
+                          +
+                        </Link>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -305,9 +376,7 @@ export default async function ForumHome({
                       ...(sort ? { sort } : {}),
                     },
                   }}
-                  className={`rounded-md px-2 py-1.5 text-sm hover:bg-foreground/5 ${
-                    !type ? "bg-foreground/5" : ""
-                  }`}
+                  className={`rounded-md px-2 py-1.5 text-sm hover:bg-foreground/5 ${!type ? "bg-foreground/5" : ""}`}
                 >
                   Všetko
                 </Link>
@@ -375,6 +444,37 @@ export default async function ForumHome({
               </div>
             ) : null}
           </div>
+
+          {/* Onboarding: show only on clean view */}
+          {isCleanView ? (
+            <Card className="border-foreground/15 bg-foreground/[0.02]">
+              <CardHeader className="py-3">
+                <div className="text-sm font-semibold">Začni tu 👋</div>
+                <div className="text-xs text-foreground/70">
+                  Rýchly onboarding: čo sem patrí, ako písať príspevky a ako z AI výstupu spraviť vec.
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0 pb-4 flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/forum/c/how-to">Ako používať fórum</Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/forum/c/projects">Spolupráce</Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/forum/c/qa">Q&A</Link>
+                </Button>
+                <div className="ml-auto flex gap-2">
+                  <Button asChild size="sm">
+                    <Link href={{ pathname: "/forum/new", query: { type: "ai_output" } }}>+ AI výstup</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={{ pathname: "/forum/new", query: { type: "request" } }}>+ Dopyt/Ponuka</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
 
           <form
             action="/forum"
@@ -473,15 +573,28 @@ export default async function ForumHome({
             </div>
           </form>
 
-          {error ? (
+          {pinnedError || error ? (
             <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/5">
               <p className="text-sm text-red-500">
-                Nepodarilo sa načítať príspevky: {(error as any).message ?? String(error)}
+                Nepodarilo sa načítať príspevky: {(pinnedError as any)?.message ?? (error as any)?.message ?? "unknown"}
               </p>
             </div>
           ) : shown.length === 0 ? (
-            <div className="p-8 rounded-lg border border-foreground/10 text-center">
-              <p className="text-sm text-foreground/70">Zatiaľ nič. Buď prvý a pridaj príspevok.</p>
+            <div className="p-8 rounded-lg border border-foreground/10 text-center space-y-3">
+              <p className="text-sm text-foreground/70">
+                Zatiaľ nič. Skús začať s <span className="font-semibold">Dopyt/Ponuka</span> alebo pozri <span className="font-semibold">Začni tu</span>.
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button asChild size="sm">
+                  <Link href={{ pathname: "/forum/new", query: { type: "request" } }}>+ Dopyt/Ponuka</Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/forum/c/how-to">Začni tu</Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link href={{ pathname: "/forum/new", query: { type: "ai_output" } }}>+ AI výstup</Link>
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3">

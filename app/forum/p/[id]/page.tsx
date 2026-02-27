@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CommentForm } from "@/components/comment-form";
 import { DeleteCommentButton, DeletePostButton } from "@/components/moderation-buttons";
 import { HelpfulButton } from "@/components/helpful-button";
+import { SolutionToggleButton } from "@/components/solution-toggle-button";
 import { ReportButton } from "@/components/report-button";
 import { HideToggleButton } from "@/components/hide-toggle";
 import { ShareButton } from "@/components/share-button";
@@ -18,12 +19,13 @@ export default async function PostPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ img?: string; media?: string }>;
+  searchParams?: Promise<{ img?: string; media?: string; created?: string }>;
 }) {
   const { id } = await params;
   const sp = searchParams ? await searchParams : {};
   const imagesFailed = sp.img === "failed";
   const mediaFailed = sp.media === "failed";
+  const created = sp.created === "1";
   const supabase = await createClient();
 
   const { data: post, error: postError } = await supabase
@@ -158,14 +160,34 @@ export default async function PostPage({
         </div>
       </div>
 
+
+      {created ? (
+        <Card className="border-foreground/15 bg-foreground/[0.02]">
+          <CardHeader className="py-3">
+            <div className="text-sm font-semibold">Hotovo ✅ Čo ďalej?</div>
+          </CardHeader>
+          <CardContent className="pt-0 pb-4 flex flex-wrap gap-2">
+            <ShareButton path={`/forum/p/${id}`} title={typedPost.title} label="Zdieľať link" />
+            <Button asChild size="sm" variant="outline">
+              <a href="#comments">Pridať komentár</a>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/forum?category=${encodeURIComponent(typedPost.category)}`}>Späť do kategórie</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={typedPost.type === "request" ? "default" : "secondary"}>
-              {typedPost.type === "request" ? "Dopyt" : typedPost.type === "product" ? "Produkt" : "AI výstup"}
+              {typedPost.type === "request" ? "Dopyt/Ponuka" : typedPost.type === "product" ? "Projekt" : "AI výstup"}
             </Badge>
             <Badge variant="outline">{typedPost.category}</Badge>
             <Badge variant="outline">{typedPost.lang.toUpperCase()}</Badge>
+            <Badge variant="outline">{typedPost.status === "solved" ? "✅ Riešené" : typedPost.status === "archived" ? "🗄️ Archív" : "🕓 Otvorené"}</Badge>
+            {Array.isArray(typedPost.tags) && typedPost.tags.includes("pinned") ? <Badge variant="outline">⭐ Pinned</Badge> : null}
             {typedPost.is_hidden ? <Badge variant="destructive">Skryté</Badge> : null}
             <span className="text-xs text-foreground/60 ml-auto">{formatDateTime(typedPost.created_at)}</span>
           </div>
@@ -242,7 +264,7 @@ export default async function PostPage({
           {media.length ? (
             <div className="space-y-3">
               <h2 className="text-sm font-semibold">Media</h2>
-              <div className="flex flex-col gap-3">
+              <div id="comments" className="flex flex-col gap-3">
                 {media.map((m) => (
                   <div key={m.id} className="rounded-md border border-foreground/10 p-3">
                     <div className="flex items-center justify-between gap-2 mb-2">
@@ -316,7 +338,7 @@ export default async function PostPage({
                 <Card key={c.id}>
                   <CardHeader className="py-3">
                     <div className="flex items-center justify-between text-xs text-foreground/60">
-                      <span>Autor: {shortId(c.author_id)}</span>
+                      <span className="flex items-center gap-2">Autor: {shortId(c.author_id)} {c.is_solution ? <Badge variant="default">✅ Riešenie</Badge> : null}</span>
                       <span>{formatDateTime(c.created_at)}</span>
                     </div>
                   </CardHeader>
@@ -330,6 +352,9 @@ export default async function PostPage({
                     )}
 
                     <div className="flex flex-wrap items-center gap-2">
+                      {(isMod || (!!user?.sub && user.sub === typedPost.author_id)) ? (
+                        <SolutionToggleButton postId={id} commentId={c.id} initialSolved={!!c.is_solution} />
+                      ) : null}
                       <HelpfulButton
                         targetType="comment"
                         targetId={c.id}

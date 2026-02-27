@@ -1,16 +1,18 @@
-﻿/* eslint-disable no-console */
+/* eslint-disable no-console */
 
 /**
- * VIORA Forum autopatch (seed welcome obsah)
- *
- * Tvoja schéma (podľa lib/forum/types.ts):
- * - forum_categories: { id, name, slug, is_active, sort_order, created_at }
- * - posts: { id, author_id, type, status, lang, category (TEXT), tags[], title, context, prompt, output, ... , is_seed, seed_batch_id }
- * - comments: { id, post_id, author_id, parent_id, body, is_solution, created_at, ... }
+ * VIORA Forum autopatch (seed tutorial + demo posts)
  *
  * Použitie:
  *   npx tsx scripts/forum-autopatch.ts seed
  *   npx tsx scripts/forum-autopatch.ts unseed
+ *
+ * Bezpečnosť:
+ *   - vyžaduje FORUM_AUTOPATCH=1
+ *   - odmieta bežať v production env
+ *
+ * Poznámka:
+ *  - v tomto projekte posts.category ukladá NÁZOV kategórie (nie slug).
  */
 
 import fs from "node:fs";
@@ -60,8 +62,6 @@ function loadEnvFallback() {
 
       const key = m[1];
       let val = m[2].trim();
-
-      // strip quotes
       if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
         val = val.slice(1, -1);
       }
@@ -82,19 +82,12 @@ function nowISO() {
 }
 
 loadEnvFallback();
-
 requireSafeToRun();
 
-// Podporíme viac názvov env, lebo ľudia si radi pomenúvajú veci rôzne 🙃
-const SUPABASE_URL =
-  process.env.SUPABASE_URL ??
-  process.env.NEXT_PUBLIC_SUPABASE_URL ??
-  "";
-
+const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const SUPABASE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY ??
   process.env.SUPABASE_SECRET_KEY ??
-  process.env.SUPABASE_SERVICE_ROLE ??
   "";
 
 if (!SUPABASE_URL) die("Missing SUPABASE_URL (alebo NEXT_PUBLIC_SUPABASE_URL).");
@@ -102,21 +95,47 @@ if (!/^https?:\/\//i.test(SUPABASE_URL)) die(`Invalid SUPABASE_URL: "${SUPABASE_
 if (!SUPABASE_KEY) die("Missing SUPABASE_SERVICE_ROLE_KEY (alebo SUPABASE_SECRET_KEY).");
 
 const AUTHOR_ID = process.env.AUTOPATCH_AUTHOR_ID ?? "";
-if (!AUTHOR_ID) {
-  die("Missing AUTOPATCH_AUTHOR_ID (daj sem profiles.id, inak posty nevložíš).");
-}
+if (!AUTHOR_ID) die("Missing AUTOPATCH_AUTHOR_ID (daj sem profiles.id).");
 
-const SEED_BATCH_ID = process.env.AUTOPATCH_SEED_BATCH_ID ?? "forum-welcome-v1";
+const SEED_BATCH_ID = process.env.AUTOPATCH_SEED_BATCH_ID ?? "forum-welcome-v2";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: false },
 });
 
-const CATEGORY_SPECS = [
+const TUTORIAL_CATS = [
   { name: "Ako používať fórum", slug: "how-to", sort_order: 1 },
   { name: "Projekty & spolupráce", slug: "projects", sort_order: 2 },
   { name: "Q&A / otázky", slug: "qa", sort_order: 3 },
 ] as const;
+
+async function ensureTutorialCategories() {
+  const slugs = TUTORIAL_CATS.map((c) => c.slug);
+  const { data: existing, error } = await supabase
+    .from("forum_categories")
+    .select("id,slug,sort_order")
+    .in("slug", slugs);
+
+  if (error) die(`forum_categories select failed: ${error.message}`);
+
+  const existingSlugs = new Set((existing ?? []).map((r: any) => r.slug));
+  const toInsert = TUTORIAL_CATS.filter((c) => !existingSlugs.has(c.slug)).map((c) => ({
+    id: uuid(),
+    name: c.name,
+    slug: c.slug,
+    is_active: true,
+    sort_order: c.sort_order,
+    created_at: nowISO(),
+  }));
+
+  if (toInsert.length) {
+    const ins = await supabase.from("forum_categories").insert(toInsert);
+    if (ins.error) die(`forum_categories insert failed: ${ins.error.message}`);
+    console.log(`+ categories inserted: ${toInsert.length}`);
+  } else {
+    console.log("= categories exist");
+  }
+}
 
 type PostInsert = {
   id: string;
@@ -124,7 +143,7 @@ type PostInsert = {
   type: "ai_output" | "request" | "product";
   status: "open" | "solved" | "archived";
   lang: "sk" | "cz" | "mix";
-  category: string; // slug z forum_categories
+  category: string; // CATEGORY NAME in this project
   tags: string[];
   title: string;
   context: string | null;
@@ -146,36 +165,7 @@ type CommentInsert = {
   created_at: string;
 };
 
-async function ensureCategories() {
-  const slugs = CATEGORY_SPECS.map((c) => c.slug);
-  const { data: existing, error } = await supabase
-    .from("forum_categories")
-    .select("id, slug")
-    .in("slug", slugs);
-
-  if (error) die(`forum_categories select failed: ${error.message}`);
-
-  const existingSlugs = new Set((existing ?? []).map((r: any) => r.slug));
-  const toInsert = CATEGORY_SPECS.filter((c) => !existingSlugs.has(c.slug)).map((c) => ({
-    id: uuid(),
-    name: c.name,
-    slug: c.slug,
-    is_active: true,
-    sort_order: c.sort_order,
-    created_at: nowISO(),
-  }));
-
-  if (toInsert.length === 0) {
-    console.log("= categories exist");
-    return;
-  }
-
-  const ins = await supabase.from("forum_categories").insert(toInsert);
-  if (ins.error) die(`forum_categories insert failed: ${ins.error.message}`);
-  console.log(`+ categories inserted: ${toInsert.length}`);
-}
-
-function seedPostsPayload(): PostInsert[] {
+function tutorialPosts(): PostInsert[] {
   const t = nowISO();
   const seedTag = `seed:${SEED_BATCH_ID}`;
 
@@ -187,22 +177,29 @@ function seedPostsPayload(): PostInsert[] {
       type: "ai_output",
       status: "open",
       lang: "sk",
-      category: "how-to",
-      tags: ["welcome", seedTag],
+      category: "Ako používať fórum",
+      tags: ["pinned", "tutorial", "welcome", seedTag],
       title: "Začni tu: čo je toto fórum a prečo existuje",
-      context: "Onboarding pre nových ľudí. Cieľ: aby fórum nepôsobilo prázdne a aby ľudia vedeli, čo sem patrí.",
+      context: "Onboarding: čo sem patrí, ako písať a ako z AI výstupu spraviť vec.",
       prompt: "Napíš krátky onboarding post pre fórum: čo sem patrí, ako písať otázky, ako pridávať AI výstupy.",
-      output:
-        [
-          "**Máš nápad. AI ti dala základ. Sám to nedáš.**",
-          "",
-          "Toto fórum je miesto, kde:",
-          "- zavesíš AI výstup / nápad / plán a ľudia ho vylepšia a overia",
-          "- požiadaš o pomoc s konkrétnym problémom (nie s existenciou)",
-          "- nájdeš spolupráce podľa skills, nie podľa papierov",
-          "",
-          "Pravidlo: keď dáš len hype a 0 detailov, dostaneš len hype a 0 pomoci.",
-        ].join("\n"),
+      output: [
+        "👋 Vitaj.",
+        "",
+        "Toto fórum je miesto, kde sa AI výstup mení na reálnu vec.",
+        "Nie „pozri aký prompt“, ale „tu je plán/kód/text – pomôž mi to dotiahnuť“.",
+        "",
+        "✅ Sem patrí:",
+        "- AI plán / architektúra / kód, keď chceš reality-check",
+        "- konkrétne otázky s kontextom a logmi",
+        "- projekty a spolupráce (skills, čas, odmena)",
+        "",
+        "❌ Nepatrí sem:",
+        "- „sprav mi všetko“",
+        "- „nefunguje mi to“ bez chyby/logu",
+        "- čistý hype bez detailov",
+        "",
+        "Pravidlo: čím presnejšia otázka, tým lepšia odpoveď.",
+      ].join("\n"),
       is_seed: true,
       seed_batch_id: SEED_BATCH_ID,
       created_at: t,
@@ -214,22 +211,23 @@ function seedPostsPayload(): PostInsert[] {
       type: "request",
       status: "open",
       lang: "sk",
-      category: "how-to",
-      tags: ["template", seedTag],
+      category: "Ako používať fórum",
+      tags: ["pinned", "tutorial", "template", seedTag],
       title: "Šablóna príspevku: AI výstup → akcia",
-      context: "Skopíruj, vyplň, ušetríš všetkým čas.",
+      context: "Skopíruj a vyplň. Ušetríš všetkým čas.",
       prompt: null,
-      output:
-        [
-          "Skopíruj a vyplň:",
-          "",
-          "1) **Cieľ (1 veta):**",
-          "2) **AI výstup (text/link):**",
-          "3) **Čo je už hotové:**",
-          "4) **Čo je problém / čo neviem:**",
-          "5) **Čo potrebujem od ľudí:**",
-          "6) **Časový rámec / priority:**",
-        ].join("\n"),
+      output: [
+        "🧩 Skopíruj a vyplň (90 sekúnd, ušetrí hodiny):",
+        "",
+        "1) Cieľ (1 veta):",
+        "2) AI výstup (text/link):",
+        "3) Čo je už hotové:",
+        "4) Čo je problém / čo neviem:",
+        "5) Čo potrebujem od ľudí (skills + čas):",
+        "6) Kritériá úspechu:",
+        "",
+        "Tip: keď nevieš bod 4, ešte nevieš, čo sa pýtaš.",
+      ].join("\n"),
       is_seed: true,
       seed_batch_id: SEED_BATCH_ID,
       created_at: t,
@@ -243,45 +241,23 @@ function seedPostsPayload(): PostInsert[] {
       type: "product",
       status: "open",
       lang: "sk",
-      category: "projects",
-      tags: ["collab", seedTag],
+      category: "Projekty & spolupráce",
+      tags: ["pinned", "tutorial", "collab", seedTag],
       title: "Ako napísať spoluprácu, aby sa ti niekto ozval",
       context: "Minimálny bríf pre spolupráce.",
       prompt: null,
-      output:
-        [
-          "Povedz ľuďom pravdu rýchlo:",
-          "- **Čo staviaš** (1–2 vety)",
-          "- **V akom stave to je** (link / repo / screenshot)",
-          "- **Koho hľadáš** (skills, nie tituly)",
-          "- **Koľko času** a **čo za to** (podiel/paid/barter/open-source)",
-          "",
-          "Ak vynecháš „čo za to“, tak najčastejšia odpoveď bude ticho.",
-        ].join("\n"),
-      is_seed: true,
-      seed_batch_id: SEED_BATCH_ID,
-      created_at: t,
-      updated_at: t,
-    },
-    {
-      id: uuid(),
-      author_id: AUTHOR_ID,
-      type: "product",
-      status: "open",
-      lang: "sk",
-      category: "projects",
-      tags: ["mvp", seedTag],
-      title: "Dopyt: FE dev na MVP (Next.js)",
-      context: "Ukážkový dopyt.",
-      prompt: null,
-      output:
-        [
-          "- Stack: Next.js, Tailwind",
-          "- Potrebujem: feed, detail príspevku, formy",
-          "- Čas: 5–10h týždenne, 2–3 týždne",
-          "",
-          "Ak máš chuť, pošli link na 1–2 veci čo si robil.",
-        ].join("\n"),
+      output: [
+        "🤝 Ľudia sa ozvú, keď chápu 3 veci: čo to je, čo treba spraviť, čo za to.",
+        "",
+        "Napíš:",
+        "- Čo staviaš (1–2 vety)",
+        "- Stav (link / repo / screenshot)",
+        "- Koho hľadáš (skills, nie tituly)",
+        "- Čas (koľko hodín/týždeň)",
+        "- Odmena (paid/podiel/barter/open-source)",
+        "",
+        "Keď vynecháš „čo za to“, najčastejšia odpoveď je ticho.",
+      ].join("\n"),
       is_seed: true,
       seed_batch_id: SEED_BATCH_ID,
       created_at: t,
@@ -295,21 +271,48 @@ function seedPostsPayload(): PostInsert[] {
       type: "request",
       status: "open",
       lang: "sk",
-      category: "qa",
-      tags: ["faq", seedTag],
-      title: "FAQ: čo sem patria AI výstupy a čo nie",
+      category: "Q&A / otázky",
+      tags: ["pinned", "tutorial", seedTag],
+      title: "Ako písať otázku tak, aby sa dala zodpovedať",
+      context: "Minimum pre dobrú otázku.",
+      prompt: null,
+      output: [
+        "❓ Minimum pre dobrú otázku:",
+        "",
+        "- Čo sa snažíš dosiahnuť (1 veta)",
+        "- Čo si spravil (konkrétne kroky)",
+        "- Čo sa stalo (error/log/screenshot)",
+        "- Čo si čakal, že sa stane",
+        "- Čo si už skúšal",
+        "",
+        "Bez toho ľudia nevedia pomôcť. A potom sa všetci tvária prekvapene. 🙂",
+      ].join("\n"),
+      is_seed: true,
+      seed_batch_id: SEED_BATCH_ID,
+      created_at: t,
+      updated_at: t,
+    },
+    {
+      id: uuid(),
+      author_id: AUTHOR_ID,
+      type: "ai_output",
+      status: "open",
+      lang: "sk",
+      category: "Q&A / otázky",
+      tags: ["tutorial", seedTag],
+      title: "FAQ: AI výstupy – čo sem dať a čo nie",
       context: "Rýchle pravidlá pre poriadok.",
       prompt: null,
-      output:
-        [
-          "Patrí sem:",
-          "- AI plán / návrh / kód keď chceš reality-check",
-          "- otázky s kontextom a logmi",
-          "",
-          "Nepatrí sem:",
-          "- „sprav mi všetko“ bez detailov",
-          "- „nefunguje mi to“ bez chyby/logu",
-        ].join("\n"),
+      output: [
+        "✅ Daj sem AI výstup, keď:",
+        "- chceš ho skrátiť/zlepšiť (text)",
+        "- chceš debug/review (kód)",
+        "- chceš otestovať logiku (plán)",
+        "",
+        "❌ Nedávaj sem AI výstup, keď:",
+        "- je to len „pozri čo mi to napísalo“",
+        "- nemáš jasné kritériá, čo má byť výsledok",
+      ].join("\n"),
       is_seed: true,
       seed_batch_id: SEED_BATCH_ID,
       created_at: t,
@@ -318,34 +321,119 @@ function seedPostsPayload(): PostInsert[] {
   ];
 }
 
-function seedCommentsPayload(postIds: string[]): CommentInsert[] {
+async function pickNonTutorialCategoryNames(limit = 6): Promise<string[]> {
+  try {
+    const { data, error } = await supabase
+      .from("forum_categories")
+      .select("name,slug,is_active")
+      .eq("is_active", true)
+      .not("slug", "in", "(how-to,projects,qa)")
+      .order("sort_order", { ascending: true })
+      .limit(limit);
+
+    if (!error && Array.isArray(data) && data.length) {
+      return data.map((r: any) => String(r.name));
+    }
+  } catch {
+    // ignore
+  }
+  // fallback: some sensible defaults
+  return [
+    "Dev a automatizácie",
+    "Dizajn a kreatíva",
+    "Biznis a marketing",
+    "Zdravie a fitness",
+    "Produktivita a systémy",
+    "Meta",
+  ].slice(0, limit);
+}
+
+async function demoPosts(): Promise<PostInsert[]> {
   const t = nowISO();
-  const mk = (post_id: string, body: string): CommentInsert => ({
+  const seedTag = `seed:${SEED_BATCH_ID}`;
+  const cats = await pickNonTutorialCategoryNames(6);
+
+  const mk = (i: number, patch: Partial<PostInsert>): PostInsert => ({
     id: uuid(),
-    post_id,
     author_id: AUTHOR_ID,
-    parent_id: null,
-    body,
-    is_solution: false,
+    type: "request",
+    status: "open",
+    lang: "sk",
+    category: cats[i % cats.length],
+    tags: [seedTag],
+    title: "Demo príspevok",
+    context: null,
+    prompt: null,
+    output: null,
+    is_seed: true,
+    seed_batch_id: SEED_BATCH_ID,
     created_at: t,
+    updated_at: t,
+    ...patch,
   });
 
-  // 1 komentár ku každému postu
-  return postIds.map((id, idx) =>
-    mk(
-      id,
-      [
-        "Seed komentár:",
-        "Ak toto vidíš, seed funguje. Ľudstvo ešte úplne neskončilo. 😄",
-        `(${idx + 1}/${postIds.length})`,
-      ].join("\n")
-    )
-  );
+  return [
+    mk(0, {
+      type: "request",
+      tags: ["demo", "supabase", seedTag],
+      title: "Ako spraviť bezpečné RLS policy pre tutorial kategórie?",
+      output: "Mám tutorial kategórie (how-to/projects/qa). Chcem, aby do nich vedel postovať len admin/mod. Aký je najčistejší pattern?",
+    }),
+    mk(1, {
+      type: "ai_output",
+      tags: ["demo", "nextjs", seedTag],
+      title: "AI navrhlo sidebar: čo z toho je dobrý nápad a čo nie?",
+      prompt: "Navrhni UI pre fórum so sidebarom a filtrom typov.",
+      output: "AI návrh: sidebar vľavo, feed vpravo, pinned onboarding box hore… (potrebujem review).",
+    }),
+    mk(2, {
+      type: "product",
+      tags: ["demo", "mvp", seedTag],
+      title: "Projekt: mini-moderation flow (report + auto-hide)",
+      output: "Chcem pridať report tlačidlo + auto-hide po N reportoch. Aký je jednoduchý DB+UI návrh pre v1?",
+    }),
+    mk(3, {
+      type: "request",
+      tags: ["demo", "fitness", seedTag],
+      title: "Ako trackovať progres bez obsesie?",
+      output: "Chcem jednoduchý systém: tréning 3× týždenne, jedlo bez počítania každého gramu. Máš návrh šablóny?",
+    }),
+    mk(4, {
+      type: "ai_output",
+      tags: ["demo", "marketing", seedTag],
+      title: "AI copy pre landing page: skrátiť a spraviť ľudskejšie",
+      output: "Tu je text… potrebujem ho skrátiť na 3 vety + 1 CTA.",
+    }),
+    mk(5, {
+      type: "request",
+      tags: ["demo", "meta", seedTag],
+      title: "Čo by malo byť na úvodnej stránke, aby to pôsobilo dôveryhodne?",
+      output: "Onboarding je fajn, ale čo ešte? Stats? featured posty? mini-guides?",
+    }),
+    mk(0, {
+      type: "product",
+      tags: ["demo", "automation", seedTag],
+      title: "Projekt: autopatch seed skript pre demo obsah",
+      output: "Chcem seedovať 5 tutorial postov + 10 demo postov, idempotentne, s unseed.",
+    }),
+    mk(1, {
+      type: "request",
+      tags: ["demo", "design", seedTag],
+      title: "Ako spraviť post card, aby bolo hneď jasné: typ/kategória/stav?",
+      output: "Chcem 3 signály kvality na kartičke. Ako to spraviť bez preplácania UI?",
+    }),
+    mk(2, {
+      type: "ai_output",
+      tags: ["demo", "prompting", seedTag],
+      title: "AI výstup: šablóny podľa typu príspevku",
+      output: "Navrhol som šablóny pre AI výstup / dopyt / projekt. Pomôž mi ich upraviť.",
+    }),
+  ];
 }
 
 async function seed() {
   console.log(`Seed batch: ${SEED_BATCH_ID}`);
-  await ensureCategories();
+  await ensureTutorialCategories();
 
   // idempotencia: ak už existujú posty s týmto batch id, neseedujeme znovu
   const existing = await supabase.from("posts").select("id").eq("seed_batch_id", SEED_BATCH_ID).limit(1);
@@ -355,14 +443,25 @@ async function seed() {
     return;
   }
 
-  const posts = seedPostsPayload();
+  const posts = [...tutorialPosts(), ...(await demoPosts())];
+
   const ins = await supabase.from("posts").insert(posts).select("id");
   if (ins.error) die(`posts insert failed: ${ins.error.message}`);
 
   const postIds = (ins.data ?? []).map((r: any) => r.id);
   console.log(`+ posts inserted: ${postIds.length}`);
 
-  const comments = seedCommentsPayload(postIds);
+  const t = nowISO();
+  const comments: CommentInsert[] = postIds.slice(0, 8).map((pid: string, idx: number) => ({
+    id: uuid(),
+    post_id: pid,
+    author_id: AUTHOR_ID,
+    parent_id: null,
+    body: `Seed komentár: ak toto vidíš, seed funguje. (${idx + 1}/${Math.min(8, postIds.length)})`,
+    is_solution: false,
+    created_at: t,
+  }));
+
   const insC = await supabase.from("comments").insert(comments);
   if (insC.error) die(`comments insert failed: ${insC.error.message}`);
   console.log(`+ comments inserted: ${comments.length}`);
@@ -373,7 +472,7 @@ async function seed() {
 async function unseed() {
   console.log(`Unseed batch: ${SEED_BATCH_ID}`);
 
-  const { data: posts, error } = await supabase.from("posts").select("id").eq("seed_batch_id", SEED_BATCH_ID).limit(500);
+  const { data: posts, error } = await supabase.from("posts").select("id").eq("seed_batch_id", SEED_BATCH_ID).limit(2000);
   if (error) die(`posts select failed: ${error.message}`);
 
   const postIds = (posts ?? []).map((p: any) => p.id);
@@ -382,7 +481,6 @@ async function unseed() {
     return;
   }
 
-  // comments -> posts
   const delC = await supabase.from("comments").delete().in("post_id", postIds);
   if (delC.error) die(`delete comments failed: ${delC.error.message}`);
   console.log(`- comments deleted`);
@@ -405,4 +503,3 @@ async function main() {
 }
 
 main().catch((e) => die(String((e as any)?.message ?? e)));
-

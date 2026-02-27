@@ -3,13 +3,23 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { HelpfulButton } from "@/components/helpful-button";
+import { POST_TYPES } from "@/lib/forum/constants";
 import type { PostRow } from "@/lib/forum/types";
 import { formatDateTime, shortId } from "@/lib/forum/format";
 
-function typeLabel(type: PostRow["type"]) {
-  if (type === "request") return "Dopyt";
-  if (type === "product") return "Produkt";
-  return "AI výstup";
+function typeMeta(type: PostRow["type"]) {
+  const found = POST_TYPES.find((t) => t.value === type);
+  const label = found?.label ?? type;
+
+  // Emoji icons that are recognizable even in grayscale UI 😄
+  const icon = type === "request" ? "🤝" : type === "product" ? "🧩" : "🧠";
+  return { label, icon };
+}
+
+function statusMeta(status: PostRow["status"]) {
+  if (status === "solved") return { label: "Riešené", icon: "✅" };
+  if (status === "archived") return { label: "Archív", icon: "🗄️" };
+  return { label: "Otvorené", icon: "🕓" };
 }
 
 export function PostCard({ post }: { post: PostRow }) {
@@ -18,14 +28,14 @@ export function PostCard({ post }: { post: PostRow }) {
   const helpfulCount = (post as any).helpful_count as number | undefined;
   const viewerHelpful = (post as any).viewer_helpful as boolean | undefined;
 
+  const t = typeMeta(post.type);
+  const st = statusMeta(post.status);
+  const isPinned = Array.isArray(post.tags) && post.tags.includes("pinned");
+
   return (
     <Card className="relative hover:bg-foreground/[0.02] transition cursor-pointer overflow-hidden">
       {/* Click anywhere to open */}
-      <Link
-        href={`/forum/p/${post.id}`}
-        className="absolute inset-0 z-10"
-        aria-label={post.title}
-      >
+      <Link href={`/forum/p/${post.id}`} className="absolute inset-0 z-10" aria-label={post.title}>
         <span className="sr-only">Open</span>
       </Link>
 
@@ -34,32 +44,32 @@ export function PostCard({ post }: { post: PostRow }) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={post.type === "request" ? "default" : "secondary"}>
-              {typeLabel(post.type)}
+              {t.icon} {t.label}
             </Badge>
             <Badge variant="outline">{post.category}</Badge>
             <Badge variant="outline">{post.lang.toUpperCase()}</Badge>
+            <Badge variant="outline">
+              {st.icon} {st.label}
+            </Badge>
+            {isPinned ? <Badge variant="outline">⭐ Pinned</Badge> : null}
             {post.is_hidden ? <Badge variant="destructive">Skryté</Badge> : null}
           </div>
-          <div className="text-xs text-foreground/60">
-            {formatDateTime(post.created_at)}
-          </div>
+          <div className="text-xs text-foreground/60">{formatDateTime(post.created_at)}</div>
         </div>
 
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-base font-semibold leading-snug truncate">
-              {post.title}
-            </div>
+            <div className="text-base font-semibold leading-snug truncate">{post.title}</div>
 
             {/* Tags must stay clickable */}
             <div className="mt-1 flex flex-wrap gap-1.5 pointer-events-auto">
-              {post.tags?.slice(0, 8).map((t) => (
+              {post.tags?.slice(0, 8).map((tag) => (
                 <Link
-                  key={t}
-                  href={`/forum?tag=${encodeURIComponent(t)}`}
+                  key={tag}
+                  href={`/forum?tag=${encodeURIComponent(tag)}`}
                   className="text-xs px-2 py-0.5 rounded-full border border-foreground/10 hover:border-foreground/30"
                 >
-                  #{t}
+                  #{tag}
                 </Link>
               ))}
             </div>
@@ -88,17 +98,11 @@ export function PostCard({ post }: { post: PostRow }) {
         <div className="flex gap-3">
           <div className="flex-1">
             {post.context ? (
-              <p className="text-sm text-foreground/80 max-h-14 overflow-hidden">
-                {post.context}
-              </p>
+              <p className="text-sm text-foreground/80 max-h-14 overflow-hidden">{post.context}</p>
             ) : post.output ? (
-              <p className="text-sm text-foreground/80 max-h-14 overflow-hidden">
-                {post.output}
-              </p>
+              <p className="text-sm text-foreground/80 max-h-14 overflow-hidden">{post.output}</p>
             ) : (
-              <p className="text-sm text-foreground/60">
-                Bez popisu. Autor: {shortId(post.author_id)}
-              </p>
+              <p className="text-sm text-foreground/60">Bez popisu. Autor: {shortId(post.author_id)}</p>
             )}
           </div>
 
