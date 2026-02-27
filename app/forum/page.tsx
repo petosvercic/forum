@@ -19,6 +19,25 @@ type SearchParams = {
 
 type CategoryOpt = { name: string; slug: string };
 
+type FeedState = { category: string; tag: string; type: string; lang: string; q: string; sort: string };
+
+function buildFeedHref(state: FeedState, updates: Partial<FeedState>) {
+  const p = new URLSearchParams();
+  const base: FeedState = { ...state, ...updates };
+
+  // Empty string => remove param
+  if (base.category) p.set("category", base.category);
+  if (base.tag) p.set("tag", base.tag);
+  if (base.type) p.set("type", base.type);
+  if (base.lang) p.set("lang", base.lang);
+  if (base.q) p.set("q", base.q);
+  if (base.sort && base.sort !== "new") p.set("sort", base.sort);
+
+  const qs = p.toString();
+  return qs ? `/forum?${qs}` : "/forum";
+}
+
+
 function scoreRelevance(p: any, q: string, tag: string) {
   const qq = q.trim().toLowerCase();
   const tt = tag.trim().toLowerCase();
@@ -200,8 +219,79 @@ export default async function ForumHome({
         </Button>
       </div>
 
-      {/* Groups (categories) */}
-      <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-col lg:flex-row gap-6">
+        <aside className="hidden lg:block w-64 shrink-0">
+          <div className="sticky top-3 rounded-lg border border-foreground/10 bg-background/70 backdrop-blur p-3 flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold">Skupiny</h2>
+              {selectedCat ? (
+                <ShareButton
+                  path={`/forum/c/${encodeURIComponent(selectedCat.slug)}`}
+                  title={`Viora • ${selectedCat.name}`}
+                  label="Zdieľať"
+                  size="sm"
+                  variant="outline"
+                />
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Link
+                href={buildFeedHref({ category, tag, type, lang, q, sort }, { category: "" })}
+                className={`text-sm px-3 py-2 rounded-md border border-foreground/10 hover:border-foreground/30 ${
+                  !category ? "bg-foreground/5" : ""
+                }`}
+              >
+                Všetko
+              </Link>
+
+              {categories.map((c) => (
+                <Link
+                  key={c.slug}
+                  href={buildFeedHref({ category, tag, type, lang, q, sort }, { category: c.name })}
+                  className={`text-sm px-3 py-2 rounded-md border border-foreground/10 hover:border-foreground/30 ${
+                    category === c.name ? "bg-foreground/5" : ""
+                  }`}
+                >
+                  {c.name}
+                </Link>
+              ))}
+            </div>
+
+            <div className="h-px bg-foreground/10" />
+
+            <div className="flex flex-col gap-2">
+              <h3 className="text-xs font-semibold text-foreground/70">Typ</h3>
+              <div className="flex flex-col gap-1">
+                <Link
+                  href={buildFeedHref({ category, tag, type, lang, q, sort }, { type: "" })}
+                  className={`text-sm px-3 py-2 rounded-md border border-foreground/10 hover:border-foreground/30 ${
+                    !type ? "bg-foreground/5" : ""
+                  }`}
+                >
+                  Všetko
+                </Link>
+
+                {POST_TYPES.map((t) => (
+                  <Link
+                    key={t.value}
+                    href={buildFeedHref({ category, tag, type, lang, q, sort }, { type: t.value })}
+                    className={`text-sm px-3 py-2 rounded-md border border-foreground/10 hover:border-foreground/30 ${
+                      type === t.value ? "bg-foreground/5" : ""
+                    }`}
+                  >
+                    {t.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <div className="min-w-0 flex-1 flex flex-col gap-6">
+
+{/* Groups (categories) */}
+      <div className="flex flex-wrap items-center gap-2 lg:hidden">
         <Link
           href="/forum"
           className={`text-xs px-3 py-1 rounded-full border border-foreground/10 hover:border-foreground/30 ${
@@ -236,7 +326,8 @@ export default async function ForumHome({
         ) : null}
       </div>
 
-      <form
+      
+<form
         action="/forum"
         method="get"
         className="sticky top-3 z-20 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 p-3 rounded-lg border border-foreground/10 bg-background/70 backdrop-blur"
@@ -251,7 +342,7 @@ export default async function ForumHome({
           />
         </div>
 
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 lg:hidden">
           <label className="text-xs text-foreground/60">Kategória</label>
           <select
             name="category"
@@ -267,7 +358,7 @@ export default async function ForumHome({
           </select>
         </div>
 
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 lg:hidden">
           <label className="text-xs text-foreground/60">Typ</label>
           <select
             name="type"
@@ -354,6 +445,8 @@ export default async function ForumHome({
       )}
 
       <div className="text-xs text-foreground/60">Zobrazených: {shown.length} (max 50)</div>
+        </div>
+      </div>
     </div>
   );
 }
