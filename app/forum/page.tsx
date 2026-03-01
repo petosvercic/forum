@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 import { PostCard } from "@/components/post-card";
 import { ShareButton } from "@/components/share-button";
@@ -244,14 +244,14 @@ export default async function ForumHome({
 
   const isCleanView = !category && !tag && !type && !lang && !q;
 
-  const newPostLabel = category ? `+ Pridať do ${category}` : "+ Nový príspevok";
+  const newPostLabel = category ? `+ PridaĹĄ do ${category}` : "+ NovĂ˝ prĂ­spevok";
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Feed</h1>
-          <p className="text-sm text-foreground/70">Zdieľaj AI výstupy, pýtaj sa, diskutuj, overuj.</p>
+          <p className="text-sm text-foreground/70">ZdieÄľaj AI vĂ˝stupy, pĂ˝taj sa, diskutuj, overuj.</p>
         </div>
 
         <Button asChild>
@@ -277,12 +277,12 @@ export default async function ForumHome({
           <div className="sticky top-3 flex flex-col gap-4">
             <div className="rounded-lg border border-foreground/10 bg-background/70 backdrop-blur p-3">
               <div className="flex items-center justify-between">
-                <div className="text-xs font-semibold text-foreground/70">Kategórie</div>
+                <div className="text-xs font-semibold text-foreground/70">KategĂłrie</div>
                 {selectedCat ? (
                   <ShareButton
                     path={`/forum/c/${encodeURIComponent(selectedCat.slug)}`}
-                    title={`Viora • ${selectedCat.name}`}
-                    label="Zdieľať"
+                    title={`Viora â€˘ ${selectedCat.name}`}
+                    label="ZdieÄľaĹĄ"
                     size="sm"
                     variant="outline"
                   />
@@ -305,7 +305,7 @@ export default async function ForumHome({
                     !category ? "bg-foreground/5" : ""
                   }`}
                 >
-                  <span>Všetko</span>
+                  <span>VĹˇetko</span>
                 </Link>
 
                 {categories.map((c) => {
@@ -334,10 +334,10 @@ export default async function ForumHome({
                       {isTutorial && !isMod ? (
                         <span
                           className="mx-1 inline-flex h-7 w-7 items-center justify-center rounded-md border border-foreground/10 text-xs text-foreground/50"
-                          title="Len admin/mod môže pridávať do tutorial kategórií"
-                          aria-label="Zamknuté"
+                          title="Len admin/mod mĂ´Ĺľe pridĂˇvaĹĄ do tutorial kategĂłriĂ­"
+                          aria-label="ZamknutĂ©"
                         >
-                          🔒
+                          đź”’
                         </span>
                       ) : (
                         <Link
@@ -350,8 +350,8 @@ export default async function ForumHome({
                             },
                           }}
                           className="mx-1 inline-flex h-7 w-7 items-center justify-center rounded-md border border-foreground/10 text-xs text-foreground/70 hover:border-foreground/30 hover:bg-foreground/5"
-                          title={`Nový príspevok do: ${c.name}`}
-                          aria-label={`Nový príspevok do: ${c.name}`}
+                          title={`NovĂ˝ prĂ­spevok do: ${c.name}`}
+                          aria-label={`NovĂ˝ prĂ­spevok do: ${c.name}`}
                         >
                           +
                         </Link>
@@ -378,7 +378,7 @@ export default async function ForumHome({
                   }}
                   className={`rounded-md px-2 py-1.5 text-sm hover:bg-foreground/5 ${!type ? "bg-foreground/5" : ""}`}
                 >
-                  Všetko
+                  VĹˇetko
                 </Link>
 
                 {POST_TYPES.map((t) => (
@@ -417,7 +417,7 @@ export default async function ForumHome({
                 !category ? "bg-foreground/5" : ""
               }`}
             >
-              Všetko
+              VĹˇetko
             </Link>
 
             {categories.map((c) => (
@@ -436,8 +436,8 @@ export default async function ForumHome({
               <div className="ml-auto">
                 <ShareButton
                   path={`/forum/c/${encodeURIComponent(selectedCat.slug)}`}
-                  title={`Viora • ${selectedCat.name}`}
-                  label="Zdieľať skupinu"
+                  title={`Viora â€˘ ${selectedCat.name}`}
+                  label="ZdieÄľaĹĄ skupinu"
                   size="sm"
                   variant="outline"
                 />
@@ -449,24 +449,24 @@ export default async function ForumHome({
           {isCleanView ? (
             <Card className="border-foreground/15 bg-foreground/[0.02]">
               <CardHeader className="py-3">
-                <div className="text-sm font-semibold">Začni tu 👋</div>
+                <div className="text-sm font-semibold">ZaÄŤni tu đź‘‹</div>
                 <div className="text-xs text-foreground/70">
-                  Rýchly onboarding: čo sem patrí, ako písať príspevky a ako z AI výstupu spraviť vec.
+                  RĂ˝chly onboarding: ÄŤo sem patrĂ­, ako pĂ­saĹĄ prĂ­spevky a ako z AI vĂ˝stupu spraviĹĄ vec.
                 </div>
               </CardHeader>
               <CardContent className="pt-0 pb-4 flex flex-wrap gap-2">
                 <Button asChild size="sm" variant="outline">
-                  <Link href="/forum/c/how-to">Ako používať fórum</Link>
+                  <Link href="/forum/c/how-to">Ako pouĹľĂ­vaĹĄ fĂłrum</Link>
                 </Button>
                 <Button asChild size="sm" variant="outline">
-                  <Link href="/forum/c/projects">Spolupráce</Link>
+                  <Link href="/forum/c/projects">SpoluprĂˇce</Link>
                 </Button>
                 <Button asChild size="sm" variant="outline">
                   <Link href="/forum/c/qa">Q&A</Link>
                 </Button>
                 <div className="ml-auto flex gap-2">
                   <Button asChild size="sm">
-                    <Link href={{ pathname: "/forum/new", query: { type: "ai_output" } }}>+ AI výstup</Link>
+                    <Link href={{ pathname: "/forum/new", query: { type: "ai_output" } }}>+ AI vĂ˝stup</Link>
                   </Button>
                   <Button asChild size="sm" variant="outline">
                     <Link href={{ pathname: "/forum/new", query: { type: "request" } }}>+ Dopyt/Ponuka</Link>
@@ -479,26 +479,26 @@ export default async function ForumHome({
           <form
             action="/forum"
             method="get"
-            className="sticky top-3 z-20 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 p-3 rounded-lg border border-foreground/10 bg-background/70 backdrop-blur"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 p-3 rounded-lg border border-foreground/10 bg-background/70 backdrop-blur"
           >
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-foreground/60">Hľadať</label>
+              <label className="text-xs text-foreground/60">HÄľadaĹĄ</label>
               <input
                 name="q"
                 defaultValue={q}
-                placeholder="Názov…"
+                placeholder="NĂˇzovâ€¦"
                 className="h-9 rounded-md border border-foreground/10 bg-transparent px-3 text-sm"
               />
             </div>
 
             <div className="flex flex-col gap-1 lg:hidden">
-              <label className="text-xs text-foreground/60">Kategória</label>
+              <label className="text-xs text-foreground/60">KategĂłria</label>
               <select
                 name="category"
                 defaultValue={category}
                 className="h-9 rounded-md border border-foreground/10 bg-transparent px-2 text-sm"
               >
-                <option value="">Všetko</option>
+                <option value="">VĹˇetko</option>
                 {categories.map((c) => (
                   <option key={c.slug} value={c.name}>
                     {c.name}
@@ -514,7 +514,7 @@ export default async function ForumHome({
                 defaultValue={type}
                 className="h-9 rounded-md border border-foreground/10 bg-transparent px-2 text-sm"
               >
-                <option value="">Všetko</option>
+                <option value="">VĹˇetko</option>
                 {POST_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>
                     {t.label}
@@ -530,7 +530,7 @@ export default async function ForumHome({
                 defaultValue={lang}
                 className="h-9 rounded-md border border-foreground/10 bg-transparent px-2 text-sm"
               >
-                <option value="">Všetko</option>
+                <option value="">VĹˇetko</option>
                 {POST_LANGS.map((l) => (
                   <option key={l.value} value={l.value}>
                     {l.label}
@@ -550,22 +550,22 @@ export default async function ForumHome({
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-foreground/60">Zoradiť</label>
+              <label className="text-xs text-foreground/60">ZoradiĹĄ</label>
               <select
                 name="sort"
                 defaultValue={sort}
                 className="h-9 rounded-md border border-foreground/10 bg-transparent px-2 text-sm"
               >
-                <option value="new">Najnovšie</option>
+                <option value="new">NajnovĹˇie</option>
                 <option value="relevance">Relevancia</option>
-                <option value="helpful">Najviac 👍</option>
-                <option value="comments">Najviac 💬</option>
+                <option value="helpful">Najviac đź‘Ť</option>
+                <option value="comments">Najviac đź’¬</option>
               </select>
             </div>
 
             <div className="lg:col-span-7 flex items-center gap-2">
               <Button type="submit" size="sm">
-                Použiť filtre
+                PouĹľiĹĄ filtre
               </Button>
               <Button type="button" size="sm" variant="outline" asChild>
                 <Link href="/forum">Reset</Link>
@@ -576,23 +576,23 @@ export default async function ForumHome({
           {pinnedError || error ? (
             <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/5">
               <p className="text-sm text-red-500">
-                Nepodarilo sa načítať príspevky: {(pinnedError as any)?.message ?? (error as any)?.message ?? "unknown"}
+                Nepodarilo sa naÄŤĂ­taĹĄ prĂ­spevky: {(pinnedError as any)?.message ?? (error as any)?.message ?? "unknown"}
               </p>
             </div>
           ) : shown.length === 0 ? (
             <div className="p-8 rounded-lg border border-foreground/10 text-center space-y-3">
               <p className="text-sm text-foreground/70">
-                Zatiaľ nič. Skús začať s <span className="font-semibold">Dopyt/Ponuka</span> alebo pozri <span className="font-semibold">Začni tu</span>.
+                ZatiaÄľ niÄŤ. SkĂşs zaÄŤaĹĄ s <span className="font-semibold">Dopyt/Ponuka</span> alebo pozri <span className="font-semibold">ZaÄŤni tu</span>.
               </p>
               <div className="flex flex-wrap justify-center gap-2">
                 <Button asChild size="sm">
                   <Link href={{ pathname: "/forum/new", query: { type: "request" } }}>+ Dopyt/Ponuka</Link>
                 </Button>
                 <Button asChild size="sm" variant="outline">
-                  <Link href="/forum/c/how-to">Začni tu</Link>
+                  <Link href="/forum/c/how-to">ZaÄŤni tu</Link>
                 </Button>
                 <Button asChild size="sm" variant="outline">
-                  <Link href={{ pathname: "/forum/new", query: { type: "ai_output" } }}>+ AI výstup</Link>
+                  <Link href={{ pathname: "/forum/new", query: { type: "ai_output" } }}>+ AI vĂ˝stup</Link>
                 </Button>
               </div>
             </div>
@@ -604,9 +604,10 @@ export default async function ForumHome({
             </div>
           )}
 
-          <div className="text-xs text-foreground/60">Zobrazených: {shown.length} (max 50)</div>
+          <div className="text-xs text-foreground/60">ZobrazenĂ˝ch: {shown.length} (max 50)</div>
         </main>
       </div>
     </div>
   );
 }
+
