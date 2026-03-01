@@ -20,9 +20,25 @@ export async function updateSession(request: NextRequest) {
     "/sitemap.xml",
   ];
 
+  // Allow public read-only browsing for most forum pages.
+  // Keep write/admin sections protected.
+  const FORUM_PUBLIC_PREFIX = "/forum";
+  const FORUM_PROTECTED_PREFIXES = [
+    "/forum/new",
+    "/forum/me",
+    "/forum/admin",
+    "/forum/moderation",
+  ];
+
+  const isForumPublic =
+    pathname === FORUM_PUBLIC_PREFIX || pathname.startsWith(FORUM_PUBLIC_PREFIX + "/")
+      ? !FORUM_PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"))
+      : false;
+
   const isPublic =
     pathname === "/" ||
     pathname.startsWith("/_next") ||
+    isForumPublic ||
     PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
 
   if (isPublic) {
