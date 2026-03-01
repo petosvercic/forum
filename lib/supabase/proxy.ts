@@ -7,6 +7,28 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
+  // Public routes should not require auth (important for link previews / crawlers).
+  const pathname = request.nextUrl.pathname;
+  const PUBLIC_PREFIXES = [
+    "/welcome",
+    "/auth",
+    "/og",
+    "/opengraph-image",
+    "/twitter-image",
+    "/favicon.ico",
+    "/robots.txt",
+    "/sitemap.xml",
+  ];
+
+  const isPublic =
+    pathname === "/" ||
+    pathname.startsWith("/_next") ||
+    PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
+
+  if (isPublic) {
+    return supabaseResponse;
+  }
+
   // If the env vars are not set, skip proxy check. You can remove this
   // once you setup the project.
   if (!hasEnvVars) {
@@ -47,12 +69,7 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
 
-  if (
-    request.nextUrl.pathname !== "/" &&
-    !user &&
-    !request.nextUrl.pathname.startsWith("/login") &&
-    !request.nextUrl.pathname.startsWith("/auth")
-  ) {
+  if (!user) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
