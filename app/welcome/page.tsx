@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { WelcomeScreen } from "@/components/welcome-screen";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Viora Forum – SK/CZ komunita",
@@ -35,3 +36,22 @@ export const metadata: Metadata = {
 export default function WelcomePage() {
   return <WelcomeScreen showSkip={false} />;
 }
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/welcome" },
+  openGraph: {
+    url: "/welcome",
+    images: [
+      {
+        url: "/og/welcome.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Viora Forum",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og/welcome.jpg"],
+  },
+};
