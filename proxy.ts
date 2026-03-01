@@ -1,7 +1,23 @@
 import { updateSession } from "@/lib/supabase/proxy";
-import { type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+
+// Public routes must bypass auth redirects (important for crawlers + share previews)
+const PUBLIC_PATHS = new Set(["/", "/welcome", "/robots.txt", "/sitemap.xml", "/favicon.ico"]);
+const PUBLIC_PREFIXES = ["/auth", "/og", "/opengraph-image", "/twitter-image"];
+
+function isPublicPath(pathname: string) {
+  if (PUBLIC_PATHS.has(pathname)) return true;
+  if (pathname.startsWith("/_next")) return true;
+  return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
+}
 
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  if (isPublicPath(pathname)) {
+    return NextResponse.next();
+  }
+
   return await updateSession(request);
 }
 
