@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import { PRODUCT_NAME } from "@/lib/brand";
 
 const siteUrl =
@@ -62,6 +63,7 @@ export default function RootLayout({
       <body className={`${geistSans.className} antialiased viora-bg min-h-screen`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
+          <Analytics />
         </ThemeProvider>
       </body>
     </html>
