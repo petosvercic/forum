@@ -3,16 +3,13 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Viora Forum – SK/CZ komunita",
-  description:
-    "Zdieľaj AI výstupy, pýtaj sa, rozbiehaj projekty a nájdi šikovných ľudí podľa skills a regiónu.",
-  alternates: {
-    canonical: "/welcome",
-  },
+  description: "Zdieľaj AI výstupy, pýtaj sa, rozbiehaj projekty a nájdi šikovných ľudí podľa skills a regiónu.",
+  alternates: { canonical: "/welcome" },
   openGraph: {
-    title: "Viora Forum",
-    description: "AI výstupy • Dopyty • Projekty • Ľudia podľa skills (SK/CZ)",
+    title: "Viora Forum – SK/CZ komunita",
+    description: "Zdieľaj AI výstupy, pýtaj sa, rozbiehaj projekty a nájdi šikovných ľudí podľa skills a regiónu.",
     url: "/welcome",
-    siteName: "Viora Forum",
+    type: "website",
     images: [
       {
         url: "/og/welcome.jpg",
@@ -21,13 +18,11 @@ export const metadata: Metadata = {
         alt: "Viora Forum",
       },
     ],
-    locale: "sk_SK",
-    type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Viora Forum",
-    description: "Zdieľaj AI výstupy a nájdi šikovných ľudí podľa skills.",
+    title: "Viora Forum – SK/CZ komunita",
+    description: "Zdieľaj AI výstupy, pýtaj sa, rozbiehaj projekty a nájdi šikovných ľudí podľa skills a regiónu.",
     images: ["/og/welcome.jpg"],
   },
 };
