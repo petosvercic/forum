@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { PRODUCT_NAME } from "@/lib/brand";
+import { HudOverlay } from "@/components/hud-overlay";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL?.startsWith("http")
@@ -62,6 +63,7 @@ export default function RootLayout({
     <html lang="sk" suppressHydrationWarning>
       <body className={`${geistSans.className} antialiased viora-bg min-h-screen`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+          <HudOverlay />
           {children}
           <Analytics />
         </ThemeProvider>

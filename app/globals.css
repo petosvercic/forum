@@ -101,12 +101,12 @@
   inset: 0;
   pointer-events: none;
   z-index: -2;
-  opacity: 0.35;
+  opacity: 0.48;
   background-image:
     linear-gradient(rgba(120, 255, 245, 0.08) 1px, transparent 1px),
     linear-gradient(90deg, rgba(120, 255, 245, 0.08) 1px, transparent 1px),
     repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 4px);
-  background-size: 56px 56px, 56px 56px, 6px 6px;
+  background-size: 44px 44px, 44px 44px, 6px 6px;
   background-position: center;
   mix-blend-mode: screen;
 }
@@ -118,12 +118,12 @@
   inset: -20vh -20vw;
   pointer-events: none;
   z-index: -1;
-  opacity: 0.55;
+  opacity: 0.72;
   background-image:
     radial-gradient(closest-side at 55% 55%, rgba(255, 170, 70, 0.22), rgba(255, 255, 255, 0) 65%),
     linear-gradient(115deg, rgba(0, 220, 255, 0) 0%, rgba(0, 220, 255, 0.14) 35%, rgba(0, 220, 255, 0) 55%),
     linear-gradient(105deg, rgba(190, 120, 255, 0) 0%, rgba(190, 120, 255, 0.10) 40%, rgba(190, 120, 255, 0) 60%);
-  filter: blur(2px);
+  filter: blur(1px);
   transform: rotate(-6deg);
   animation: viora-drift 18s linear infinite;
 }
@@ -195,4 +195,54 @@
 @keyframes viora-float {
   0%, 100% { transform: translate3d(0, 0, 0); }
   50% { transform: translate3d(0, -10px, 0); }
+}
+
+/* --- Full-screen HUD overlay helpers (scanline + tiny flicker) --- */
+.viora-scanline {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: -25vh;
+  height: 2px;
+  pointer-events: none;
+  z-index: 6;
+  opacity: 0.9;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0), rgba(0, 220, 255, 0.28), rgba(190, 120, 255, 0.18), rgba(0, 0, 0, 0));
+  box-shadow: 0 0 28px rgba(0, 220, 255, 0.14);
+  mix-blend-mode: screen;
+  animation: viora-scan 6.5s linear infinite;
+}
+
+@keyframes viora-scan {
+  0% { transform: translate3d(0, -25vh, 0); }
+  100% { transform: translate3d(0, 140vh, 0); }
+}
+
+.viora-flicker {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0.10;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.04) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
+    radial-gradient(60% 50% at 50% 20%, rgba(0, 220, 255, 0.06), rgba(0, 0, 0, 0) 60%);
+  mix-blend-mode: overlay;
+  animation: viora-flicker 8.5s ease-in-out infinite;
+}
+
+@keyframes viora-flicker {
+  0%, 100% { opacity: 0.08; }
+  48% { opacity: 0.12; }
+  52% { opacity: 0.06; }
+  74% { opacity: 0.11; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viora-bg::after,
+  .viora-float,
+  .viora-scanline,
+  .viora-flicker {
+    animation: none !important;
+  }
 }

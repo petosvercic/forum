@@ -49,11 +49,20 @@ export function WelcomeScreen({
         </div>
       </div>
 
-      <Card className="relative z-10 w-full max-w-3xl viora-panel animate-in fade-in zoom-in-95 duration-500">
+      <Card className="group relative z-10 w-full max-w-3xl viora-panel overflow-hidden animate-in fade-in zoom-in-95 duration-500">
+        {/* tiny HUD lines inside the card */}
+        <div aria-hidden className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(0,220,255,0.55)] to-transparent opacity-80" />
+        <div aria-hidden className="absolute inset-y-0 left-0 w-px bg-[rgba(0,220,255,0.14)]" />
+        <div aria-hidden className="absolute inset-y-0 right-0 w-px bg-[rgba(190,120,255,0.10)]" />
         <CardHeader className="space-y-2">
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-foreground/60">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-[rgba(0,220,255,0.9)]" />
-            Welcome interface
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] uppercase tracking-[0.22em] text-foreground/60">
+            <div className="flex items-center gap-2">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[rgba(0,220,255,0.9)]" />
+              Welcome interface
+            </div>
+            <div className="font-mono text-[10px] tracking-[0.18em] text-foreground/50">
+              ping 28ms · threads 04 · replies 12
+            </div>
           </div>
           <CardTitle className="text-4xl sm:text-5xl font-semibold tracking-tight viora-title animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
             {PRODUCT_NAME}
@@ -103,8 +112,13 @@ export function WelcomeScreen({
             </Button>
           </div>
 
-          <div className="text-xs text-foreground/60">
-            Tip: Zdieľaj tento brief ako link: <span className="font-mono">/welcome</span>
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-foreground/60">
+            <div>
+              Tip: Zdieľaj tento brief ako link: <span className="font-mono">/welcome</span>
+            </div>
+            <div className="font-mono text-[10px] tracking-[0.14em] text-foreground/50">
+              STATUS: READY · UI: HUD
+            </div>
           </div>
         </CardContent>
       </Card>
