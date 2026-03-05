@@ -1,0 +1,264 @@
+--- app/globals.css
++++ app/globals.css
+@@ -4,6 +4,11 @@
+ 
+ @layer base {
+   :root {
++    /* Futuristic accents (no units, H S L) */
++    --viora-cyan: 186 100% 55%;
++    --viora-magenta: 292 100% 70%;
++    --viora-amber: 34 100% 60%;
++
+     --background: 0 0% 100%;
+     --foreground: 0 0% 3.9%;
+     --card: 0 0% 100%;
+@@ -31,25 +36,26 @@
+     --radius: 0.5rem;
+   }
+   .dark {
+-    --background: 0 0% 3.9%;
+-    --foreground: 0 0% 98%;
+-    --card: 0 0% 3.9%;
+-    --card-foreground: 0 0% 98%;
+-    --popover: 0 0% 3.9%;
+-    --popover-foreground: 0 0% 98%;
+-    --primary: 0 0% 98%;
+-    --primary-foreground: 0 0% 9%;
+-    --secondary: 0 0% 14.9%;
+-    --secondary-foreground: 0 0% 98%;
+-    --muted: 0 0% 14.9%;
+-    --muted-foreground: 0 0% 63.9%;
+-    --accent: 0 0% 14.9%;
+-    --accent-foreground: 0 0% 98%;
++    /* Deep navy base like the promo video (still readable) */
++    --background: 224 47% 5%;
++    --foreground: 210 40% 98%;
++    --card: 224 42% 7%;
++    --card-foreground: 210 40% 98%;
++    --popover: 224 42% 7%;
++    --popover-foreground: 210 40% 98%;
++    --primary: var(--viora-cyan);
++    --primary-foreground: 224 47% 6%;
++    --secondary: 224 30% 12%;
++    --secondary-foreground: 210 40% 98%;
++    --muted: 224 30% 12%;
++    --muted-foreground: 215 20% 65%;
++    --accent: 224 30% 12%;
++    --accent-foreground: 210 40% 98%;
+     --destructive: 0 62.8% 30.6%;
+     --destructive-foreground: 0 0% 98%;
+-    --border: 0 0% 14.9%;
+-    --input: 0 0% 14.9%;
+-    --ring: 0 0% 83.1%;
++    --border: 223 25% 18%;
++    --input: 223 25% 18%;
++    --ring: var(--viora-cyan);
+     --chart-1: 220 70% 50%;
+     --chart-2: 160 60% 45%;
+     --chart-3: 30 80% 55%;
+@@ -70,24 +76,123 @@
+ 
+ /* --- Viora brand background (fallback gradients + optional image in /public/viora-bg.webp) --- */
+ .viora-bg {
++  position: relative;
++  isolation: isolate;
+   background-image:
+-    radial-gradient(60% 50% at 20% 20%, rgba(150, 180, 255, 0.35) 0%, rgba(255, 255, 255, 0) 60%),
+-    radial-gradient(55% 45% at 80% 30%, rgba(210, 170, 255, 0.25) 0%, rgba(255, 255, 255, 0) 65%),
+-    radial-gradient(60% 60% at 50% 90%, rgba(120, 210, 255, 0.18) 0%, rgba(255, 255, 255, 0) 70%),
++    radial-gradient(60% 50% at 20% 20%, rgba(0, 220, 255, 0.22) 0%, rgba(255, 255, 255, 0) 60%),
++    radial-gradient(55% 45% at 80% 30%, rgba(190, 120, 255, 0.20) 0%, rgba(255, 255, 255, 0) 65%),
++    radial-gradient(60% 60% at 50% 90%, rgba(255, 175, 70, 0.14) 0%, rgba(255, 255, 255, 0) 70%),
+     url("/viora-bg.webp");
+   background-size: cover;
+   background-position: center;
+   background-attachment: fixed;
+ }
+ 
++@media (max-width: 768px) {
++  .viora-bg {
++    background-attachment: scroll;
++  }
++}
++
++/* HUD-ish grid + subtle noise texture */
++.viora-bg::before {
++  content: "";
++  position: fixed;
++  inset: 0;
++  pointer-events: none;
++  z-index: -2;
++  opacity: 0.35;
++  background-image:
++    linear-gradient(rgba(120, 255, 245, 0.08) 1px, transparent 1px),
++    linear-gradient(90deg, rgba(120, 255, 245, 0.08) 1px, transparent 1px),
++    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 4px);
++  background-size: 56px 56px, 56px 56px, 6px 6px;
++  background-position: center;
++  mix-blend-mode: screen;
++}
++
++/* Soft light streaks drifting across the screen */
++.viora-bg::after {
++  content: "";
++  position: fixed;
++  inset: -20vh -20vw;
++  pointer-events: none;
++  z-index: -1;
++  opacity: 0.55;
++  background-image:
++    radial-gradient(closest-side at 55% 55%, rgba(255, 170, 70, 0.22), rgba(255, 255, 255, 0) 65%),
++    linear-gradient(115deg, rgba(0, 220, 255, 0) 0%, rgba(0, 220, 255, 0.14) 35%, rgba(0, 220, 255, 0) 55%),
++    linear-gradient(105deg, rgba(190, 120, 255, 0) 0%, rgba(190, 120, 255, 0.10) 40%, rgba(190, 120, 255, 0) 60%);
++  filter: blur(2px);
++  transform: rotate(-6deg);
++  animation: viora-drift 18s linear infinite;
++}
++
++@keyframes viora-drift {
++  0% {
++    transform: translate3d(-2%, -1%, 0) rotate(-6deg);
++  }
++  50% {
++    transform: translate3d(2%, 1%, 0) rotate(-6deg);
++  }
++  100% {
++    transform: translate3d(-2%, -1%, 0) rotate(-6deg);
++  }
++}
++
+ .viora-panel {
++  position: relative;
+   backdrop-filter: blur(14px);
+-  background: rgba(255, 255, 255, 0.72);
+-  border: 1px solid rgba(0,0,0,0.08);
++  border: 1px solid transparent;
++  background:
++    linear-gradient(rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.62)) padding-box,
++    linear-gradient(135deg, rgba(0, 220, 255, 0.45), rgba(190, 120, 255, 0.24), rgba(255, 175, 70, 0.14)) border-box;
+   border-radius: 16px;
++  box-shadow:
++    0 0 0 1px rgba(0, 220, 255, 0.08),
++    0 12px 40px rgba(0, 0, 0, 0.16);
+ }
+ 
+ .dark .viora-panel {
+-  background: rgba(10, 10, 10, 0.55);
+-  border-color: rgba(255,255,255,0.12);
++  border-color: transparent;
++  background:
++    linear-gradient(rgba(9, 12, 18, 0.62), rgba(9, 12, 18, 0.42)) padding-box,
++    linear-gradient(135deg, rgba(0, 220, 255, 0.55), rgba(190, 120, 255, 0.26), rgba(255, 175, 70, 0.14)) border-box;
++  box-shadow:
++    0 0 0 1px rgba(0, 220, 255, 0.14),
++    0 18px 60px rgba(0, 0, 0, 0.55);
++}
++
++/* Futuristic typography helpers */
++.viora-title {
++  letter-spacing: -0.02em;
++  background: linear-gradient(90deg, rgba(255, 255, 255, 0.95), rgba(0, 220, 255, 0.92), rgba(190, 120, 255, 0.88));
++  -webkit-background-clip: text;
++  background-clip: text;
++  color: transparent;
++  text-shadow: 0 0 22px rgba(0, 220, 255, 0.18);
++}
++
++.viora-chip {
++  display: inline-flex;
++  align-items: center;
++  gap: 0.35rem;
++  padding: 0.3rem 0.55rem;
++  border-radius: 999px;
++  font-size: 12px;
++  line-height: 1;
++  border: 1px solid rgba(0, 220, 255, 0.20);
++  background: rgba(8, 12, 18, 0.35);
++  color: rgba(255, 255, 255, 0.82);
++  box-shadow: 0 0 0 1px rgba(190, 120, 255, 0.08);
++  backdrop-filter: blur(10px);
++}
++
++.viora-float {
++  animation: viora-float 10s ease-in-out infinite;
++}
++
++@keyframes viora-float {
++  0%, 100% { transform: translate3d(0, 0, 0); }
++  50% { transform: translate3d(0, -10px, 0); }
+ }
+
+--- app/layout.tsx
++++ app/layout.tsx
+@@ -61,7 +61,7 @@
+   return (
+     <html lang="sk" suppressHydrationWarning>
+       <body className={`${geistSans.className} antialiased viora-bg min-h-screen`}>
+-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
++        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+           {children}
+           <Analytics />
+         </ThemeProvider>
+
+--- components/welcome-screen.tsx
++++ components/welcome-screen.tsx
+@@ -28,13 +28,37 @@
+   };
+ 
+   return (
+-    <div className="min-h-[calc(100vh-2rem)] flex items-center justify-center p-4">
+-      <Card className="w-full max-w-3xl viora-panel">
++    <div className="relative min-h-[calc(100vh-2rem)] flex items-center justify-center p-4 overflow-hidden">
++      {/* floating HUD-ish elements (pure decoration) */}
++      <div aria-hidden className="pointer-events-none absolute inset-0">
++        <div className="absolute left-6 top-10 viora-chip viora-float opacity-80">
++          <span className="h-1.5 w-1.5 rounded-full bg-[rgba(0,220,255,0.9)]" />
++          Projekty & spolupráce
++        </div>
++        <div className="absolute right-10 top-16 viora-chip viora-float opacity-70" style={{ animationDelay: "-2s" }}>
++          <span className="h-1.5 w-1.5 rounded-full bg-[rgba(190,120,255,0.9)]" />
++          Q&A / otázky
++        </div>
++        <div className="absolute left-10 bottom-16 viora-chip viora-float opacity-65" style={{ animationDelay: "-5s" }}>
++          <span className="h-1.5 w-1.5 rounded-full bg-[rgba(255,175,70,0.9)]" />
++          AI výstupy
++        </div>
++        <div className="absolute right-6 bottom-10 viora-chip viora-float opacity-60" style={{ animationDelay: "-7s" }}>
++          <span className="h-1.5 w-1.5 rounded-full bg-[rgba(0,220,255,0.9)]" />
++          reply: 12
++        </div>
++      </div>
++
++      <Card className="relative z-10 w-full max-w-3xl viora-panel animate-in fade-in zoom-in-95 duration-500">
+         <CardHeader className="space-y-2">
+-          <CardTitle className="text-3xl font-bold tracking-tight">
++          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-foreground/60">
++            <span className="inline-block h-1.5 w-1.5 rounded-full bg-[rgba(0,220,255,0.9)]" />
++            Welcome interface
++          </div>
++          <CardTitle className="text-4xl sm:text-5xl font-semibold tracking-tight viora-title animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+             {PRODUCT_NAME}
+           </CardTitle>
+-          <p className="text-sm text-foreground/70">{TAGLINE}</p>
++          <p className="text-sm text-foreground/70 animate-in fade-in slide-in-from-bottom-3 duration-700 delay-200">{TAGLINE}</p>
+         </CardHeader>
+         <CardContent className="space-y-5">
+           <div className="space-y-3 text-sm leading-relaxed text-foreground/85">
+
+--- components/ui/button.tsx
++++ components/ui/button.tsx
+@@ -10,11 +10,11 @@
+     variants: {
+       variant: {
+         default:
+-          "bg-primary text-primary-foreground shadow hover:bg-primary/90",
++          "bg-primary text-primary-foreground shadow-[0_0_0_1px_rgba(0,220,255,0.14),0_12px_28px_rgba(0,0,0,0.35)] hover:bg-primary/90 hover:shadow-[0_0_0_1px_rgba(0,220,255,0.28),0_18px_40px_rgba(0,0,0,0.45)]",
+         destructive:
+           "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
+         outline:
+-          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
++          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground hover:border-[rgba(0,220,255,0.35)]",
+         secondary:
+           "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
+         ghost: "hover:bg-accent hover:text-accent-foreground",
+

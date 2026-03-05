@@ -28,13 +28,37 @@ export function WelcomeScreen({
   };
 
   return (
-    <div className="min-h-[calc(100vh-2rem)] flex items-center justify-center p-4">
-      <Card className="w-full max-w-3xl viora-panel">
+    <div className="relative min-h-[calc(100vh-2rem)] flex items-center justify-center p-4 overflow-hidden">
+      {/* floating HUD-ish elements (pure decoration) */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute left-6 top-10 viora-chip viora-float opacity-80">
+          <span className="h-1.5 w-1.5 rounded-full bg-[rgba(0,220,255,0.9)]" />
+          Projekty & spolupráce
+        </div>
+        <div className="absolute right-10 top-16 viora-chip viora-float opacity-70" style={{ animationDelay: "-2s" }}>
+          <span className="h-1.5 w-1.5 rounded-full bg-[rgba(190,120,255,0.9)]" />
+          Q&A / otázky
+        </div>
+        <div className="absolute left-10 bottom-16 viora-chip viora-float opacity-65" style={{ animationDelay: "-5s" }}>
+          <span className="h-1.5 w-1.5 rounded-full bg-[rgba(255,175,70,0.9)]" />
+          AI výstupy
+        </div>
+        <div className="absolute right-6 bottom-10 viora-chip viora-float opacity-60" style={{ animationDelay: "-7s" }}>
+          <span className="h-1.5 w-1.5 rounded-full bg-[rgba(0,220,255,0.9)]" />
+          reply: 12
+        </div>
+      </div>
+
+      <Card className="relative z-10 w-full max-w-3xl viora-panel animate-in fade-in zoom-in-95 duration-500">
         <CardHeader className="space-y-2">
-          <CardTitle className="text-3xl font-bold tracking-tight">
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-foreground/60">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-[rgba(0,220,255,0.9)]" />
+            Welcome interface
+          </div>
+          <CardTitle className="text-4xl sm:text-5xl font-semibold tracking-tight viora-title animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
             {PRODUCT_NAME}
           </CardTitle>
-          <p className="text-sm text-foreground/70">{TAGLINE}</p>
+          <p className="text-sm text-foreground/70 animate-in fade-in slide-in-from-bottom-3 duration-700 delay-200">{TAGLINE}</p>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="space-y-3 text-sm leading-relaxed text-foreground/85">
